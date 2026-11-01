@@ -47,7 +47,8 @@ test('renderStylizedTurkey paints a complete canvas without browser globals', ()
         },
     });
     app.renderStylizedTurkey(context, app.SAMPLE_KEYPOINTS, 1200, 900);
-    assert.ok(calls.some(([name]) => name === 'ellipse'));
+    assert.ok(calls.some(([name]) => name === 'bezierCurveTo'));
+    assert.ok(calls.some(([name]) => name === 'quadraticCurveTo'));
     assert.ok(calls.some(([name]) => name === 'fillText'));
 });
 

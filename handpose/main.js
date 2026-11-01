@@ -13,6 +13,12 @@ const FINGER_PATHS = [
     [0, 13, 14, 15, 16],
     [0, 17, 18, 19, 20],
 ];
+const TAIL_PATHS = [
+    [17, 18, 19, 20],
+    [13, 14, 15, 16],
+    [9, 10, 11, 12],
+    [5, 6, 7, 8],
+];
 
 const SAMPLE_KEYPOINTS = [
     [320, 454], [282, 406], [236, 352], [176, 320], [116, 300],
@@ -81,6 +87,137 @@ function mapPoint(point, transform) {
     ];
 }
 
+function distanceBetween(first, second) {
+    return Math.hypot(second[0] - first[0], second[1] - first[1]);
+}
+
+function averagePoints(points) {
+    return points.reduce((total, point) => [total[0] + point[0], total[1] + point[1]], [0, 0])
+        .map((value) => value / points.length);
+}
+
+function interpolatePoint(first, second, amount) {
+    return [
+        first[0] + (second[0] - first[0]) * amount,
+        first[1] + (second[1] - first[1]) * amount,
+    ];
+}
+
+function addVector(point, vector, amount) {
+    return [point[0] + vector[0] * amount, point[1] + vector[1] * amount];
+}
+
+function normalizeVector(vector, fallback = [0, -1]) {
+    const length = Math.hypot(vector[0], vector[1]);
+    if (length < 0.0001) return [...fallback];
+    return [vector[0] / length, vector[1] / length];
+}
+
+function traceSmoothPoints(context, pathPoints) {
+    context.beginPath();
+    context.moveTo(pathPoints[0][0], pathPoints[0][1]);
+    for (let index = 1; index < pathPoints.length - 1; index += 1) {
+        const midpoint = interpolatePoint(pathPoints[index], pathPoints[index + 1], 0.5);
+        context.quadraticCurveTo(pathPoints[index][0], pathPoints[index][1], midpoint[0], midpoint[1]);
+    }
+    const last = pathPoints[pathPoints.length - 1];
+    context.lineTo(last[0], last[1]);
+}
+
+function strokeRoundedPoints(context, pathPoints, color, width) {
+    traceSmoothPoints(context, pathPoints);
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.strokeStyle = 'rgba(23,56,58,.34)';
+    context.lineWidth = width + Math.max(5, width * 0.14);
+    context.stroke();
+    traceSmoothPoints(context, pathPoints);
+    context.strokeStyle = color;
+    context.lineWidth = width;
+    context.stroke();
+}
+
+function strokeRoundedPath(context, points, indices, color, width) {
+    strokeRoundedPoints(context, indices.map((index) => points[index]), color, width);
+}
+
+function calculatePalmGeometry(points, fingerWidth) {
+    const wrist = points[0];
+    const indexKnuckle = points[5];
+    const middleKnuckle = points[9];
+    const ringKnuckle = points[13];
+    const pinkyKnuckle = points[17];
+    const knuckleCenter = averagePoints([indexKnuckle, middleKnuckle, ringKnuckle, pinkyKnuckle]);
+    const forward = normalizeVector([knuckleCenter[0] - wrist[0], knuckleCenter[1] - wrist[1]]);
+    const rawAcross = [indexKnuckle[0] - pinkyKnuckle[0], indexKnuckle[1] - pinkyKnuckle[1]];
+    const projection = rawAcross[0] * forward[0] + rawAcross[1] * forward[1];
+    const perpendicularAcross = [
+        rawAcross[0] - forward[0] * projection,
+        rawAcross[1] - forward[1] * projection,
+    ];
+    const across = normalizeVector(perpendicularAcross, [-forward[1], forward[0]]);
+    const palmWidth = Math.max(distanceBetween(indexKnuckle, pinkyKnuckle), fingerWidth * 3.5);
+    const palmLength = Math.max(distanceBetween(wrist, knuckleCenter), fingerWidth * 2.7);
+    const sidePadding = fingerWidth * 0.38;
+    const wristHalfWidth = palmWidth * 0.3;
+    const indexOuter = addVector(indexKnuckle, across, sidePadding);
+    const pinkyOuter = addVector(pinkyKnuckle, across, -sidePadding);
+    const indexSide = addVector(interpolatePoint(indexKnuckle, wrist, 0.55), across, sidePadding * 0.8);
+    const pinkySide = addVector(interpolatePoint(pinkyKnuckle, wrist, 0.55), across, -sidePadding * 0.8);
+    const wristIndex = addVector(addVector(wrist, across, wristHalfWidth), forward, -fingerWidth * 0.18);
+    const wristPinky = addVector(addVector(wrist, across, -wristHalfWidth), forward, -fingerWidth * 0.18);
+    const cuffCenter = addVector(wrist, forward, -fingerWidth * 0.42);
+    const palmCenter = interpolatePoint(wrist, knuckleCenter, 0.52);
+    return {
+        wrist,
+        indexKnuckle,
+        middleKnuckle,
+        ringKnuckle,
+        pinkyKnuckle,
+        knuckleCenter,
+        forward,
+        across,
+        palmWidth,
+        palmLength,
+        palmCenter,
+        indexOuter,
+        pinkyOuter,
+        indexSide,
+        pinkySide,
+        wristIndex,
+        wristPinky,
+        cuffCenter,
+    };
+}
+
+function tracePalm(context, palm) {
+    context.beginPath();
+    context.moveTo(palm.indexOuter[0], palm.indexOuter[1]);
+    context.quadraticCurveTo(
+        palm.indexKnuckle[0], palm.indexKnuckle[1],
+        palm.middleKnuckle[0], palm.middleKnuckle[1],
+    );
+    context.quadraticCurveTo(
+        palm.ringKnuckle[0], palm.ringKnuckle[1],
+        palm.pinkyOuter[0], palm.pinkyOuter[1],
+    );
+    context.bezierCurveTo(
+        palm.pinkySide[0], palm.pinkySide[1],
+        palm.wristPinky[0], palm.wristPinky[1],
+        palm.wristPinky[0], palm.wristPinky[1],
+    );
+    context.quadraticCurveTo(
+        palm.cuffCenter[0], palm.cuffCenter[1],
+        palm.wristIndex[0], palm.wristIndex[1],
+    );
+    context.bezierCurveTo(
+        palm.wristIndex[0], palm.wristIndex[1],
+        palm.indexSide[0], palm.indexSide[1],
+        palm.indexOuter[0], palm.indexOuter[1],
+    );
+    context.closePath();
+}
+
 function tracePath(context, points, indices) {
     const first = points[indices[0]];
     context.beginPath();
@@ -98,15 +235,12 @@ function fillCircle(context, x, y, radius, color) {
 function renderStylizedTurkey(context, keypoints, width, height) {
     const transform = calculateTransform(keypoints, width, height);
     const points = keypoints.map((point) => mapPoint(point, transform));
-    const scale = transform.scale;
-    const wrist = points[0];
-    const palmCenter = [
-        (points[0][0] + points[5][0] + points[9][0] + points[13][0] + points[17][0]) / 5,
-        (points[0][1] + points[5][1] + points[9][1] + points[13][1] + points[17][1]) / 5,
-    ];
-    const palmWidth = Math.max(Math.abs(points[5][0] - points[17][0]) * 1.35, 82 * scale);
-    const palmHeight = Math.max(Math.abs(wrist[1] - points[9][1]) * 1.3, 90 * scale);
-    const featherWidth = Math.max(22 * scale, width * 0.032);
+    const measuredPalmWidth = distanceBetween(points[5], points[17]);
+    const fingerWidth = Math.min(
+        Math.max(measuredPalmWidth * 0.22, width * 0.026),
+        width * 0.058,
+    );
+    const palm = calculatePalmGeometry(points, fingerWidth);
 
     context.save();
     context.clearRect(0, 0, width, height);
@@ -120,55 +254,81 @@ function renderStylizedTurkey(context, keypoints, width, height) {
         }
     }
 
-    const featherPaths = [FINGER_PATHS[4], FINGER_PATHS[3], FINGER_PATHS[2], FINGER_PATHS[1]];
-    featherPaths.forEach((path, index) => {
-        tracePath(context, points, path);
-        context.lineCap = 'round';
-        context.lineJoin = 'round';
-        context.strokeStyle = FEATHER_COLORS[index];
-        context.lineWidth = featherWidth;
-        context.stroke();
-        fillCircle(context, points[path[path.length - 1]][0], points[path[path.length - 1]][1], featherWidth * 0.52, FEATHER_COLORS[index]);
+    TAIL_PATHS.forEach((path, index) => {
+        strokeRoundedPath(context, points, path, FEATHER_COLORS[index], fingerWidth);
     });
 
-    context.beginPath();
-    context.ellipse(palmCenter[0], palmCenter[1] + palmHeight * 0.08, palmWidth * 0.55, palmHeight * 0.62, 0, 0, Math.PI * 2);
+    const thumbBase = interpolatePoint(palm.indexKnuckle, palm.wrist, 0.52);
+    strokeRoundedPoints(context, [thumbBase, points[1], points[2], points[3], points[4]], BODY, fingerWidth * 0.84);
+
+    tracePalm(context, palm);
     context.fillStyle = BODY;
     context.fill();
-
-    tracePath(context, points, [2, 3, 4]);
-    context.strokeStyle = BODY;
-    context.lineWidth = featherWidth * 0.72;
-    context.lineCap = 'round';
+    tracePalm(context, palm);
+    context.strokeStyle = 'rgba(23,56,58,.42)';
+    context.lineWidth = Math.max(4, fingerWidth * 0.1);
     context.lineJoin = 'round';
     context.stroke();
-    const head = points[4];
-    fillCircle(context, head[0], head[1], featherWidth * 0.58, BODY);
 
-    const direction = head[0] < palmCenter[0] ? -1 : 1;
+    const upperCreaseStart = interpolatePoint(palm.indexKnuckle, palm.wrist, 0.38);
+    const upperCreaseEnd = interpolatePoint(palm.pinkyKnuckle, palm.wrist, 0.4);
+    const creaseControl = addVector(palm.palmCenter, palm.forward, -palm.palmLength * 0.08);
     context.beginPath();
-    context.moveTo(head[0] + direction * featherWidth * 0.52, head[1] - featherWidth * 0.12);
-    context.lineTo(head[0] + direction * featherWidth * 1.18, head[1] + featherWidth * 0.08);
-    context.lineTo(head[0] + direction * featherWidth * 0.5, head[1] + featherWidth * 0.35);
+    context.moveTo(upperCreaseStart[0], upperCreaseStart[1]);
+    context.quadraticCurveTo(creaseControl[0], creaseControl[1], upperCreaseEnd[0], upperCreaseEnd[1]);
+    context.strokeStyle = 'rgba(255,250,242,.3)';
+    context.lineWidth = Math.max(3, fingerWidth * 0.065);
+    context.lineCap = 'round';
+    context.stroke();
+
+    const lifeLineStart = interpolatePoint(palm.indexKnuckle, palm.wrist, 0.26);
+    const lifeLineEnd = interpolatePoint(palm.indexKnuckle, palm.wrist, 0.72);
+    const lifeLineControl = addVector(interpolatePoint(lifeLineStart, lifeLineEnd, 0.5), palm.across, palm.palmWidth * 0.14);
+    context.beginPath();
+    context.moveTo(lifeLineStart[0], lifeLineStart[1]);
+    context.quadraticCurveTo(lifeLineControl[0], lifeLineControl[1], lifeLineEnd[0], lifeLineEnd[1]);
+    context.stroke();
+
+    const head = points[4];
+    const headRadius = fingerWidth * 0.56;
+    fillCircle(context, head[0], head[1], headRadius, BODY);
+
+    const thumbDirection = normalizeVector(
+        [head[0] - points[3][0], head[1] - points[3][1]],
+        normalizeVector([head[0] - palm.palmCenter[0], head[1] - palm.palmCenter[1]], [-1, 0]),
+    );
+    let faceNormal = [-thumbDirection[1], thumbDirection[0]];
+    if (faceNormal[1] > 0) faceNormal = [-faceNormal[0], -faceNormal[1]];
+    const beakBase = addVector(head, thumbDirection, headRadius * 0.5);
+    const beakTip = addVector(head, thumbDirection, headRadius * 1.55);
+    const beakTop = addVector(beakBase, faceNormal, headRadius * 0.38);
+    const beakBottom = addVector(beakBase, faceNormal, -headRadius * 0.38);
+    context.beginPath();
+    context.moveTo(beakTop[0], beakTop[1]);
+    context.lineTo(beakTip[0], beakTip[1]);
+    context.lineTo(beakBottom[0], beakBottom[1]);
     context.closePath();
     context.fillStyle = '#d8a126';
     context.fill();
-    fillCircle(context, head[0] + direction * featherWidth * 0.13, head[1] - featherWidth * 0.15, featherWidth * 0.11, '#fffaf2');
-    fillCircle(context, head[0] + direction * featherWidth * 0.15, head[1] - featherWidth * 0.15, featherWidth * 0.045, INK);
-    fillCircle(context, head[0] + direction * featherWidth * 0.45, head[1] + featherWidth * 0.52, featherWidth * 0.18, '#c63f32');
+    const eye = addVector(addVector(head, thumbDirection, headRadius * 0.18), faceNormal, headRadius * 0.28);
+    fillCircle(context, eye[0], eye[1], headRadius * 0.2, '#fffaf2');
+    fillCircle(context, eye[0] + thumbDirection[0] * headRadius * 0.04, eye[1] + thumbDirection[1] * headRadius * 0.04, headRadius * 0.08, INK);
+    const wattle = addVector(addVector(head, thumbDirection, headRadius * 0.34), faceNormal, -headRadius * 0.62);
+    fillCircle(context, wattle[0], wattle[1], headRadius * 0.25, '#c63f32');
 
-    const footY = Math.min(height - 78, wrist[1] + featherWidth * 1.8);
-    [-0.22, 0.22].forEach((offset) => {
-        const x = palmCenter[0] + palmWidth * offset;
+    const legStartY = Math.max(palm.wristIndex[1], palm.wristPinky[1]);
+    const footY = Math.min(height - 72, legStartY + fingerWidth * 1.3);
+    [-0.15, 0.15].forEach((offset) => {
+        const x = palm.wrist[0] + palm.palmWidth * offset;
         context.strokeStyle = '#d8a126';
-        context.lineWidth = Math.max(7, featherWidth * 0.11);
+        context.lineWidth = Math.max(6, fingerWidth * 0.11);
         context.lineCap = 'round';
         context.beginPath();
-        context.moveTo(x, palmCenter[1] + palmHeight * 0.55);
+        context.moveTo(x, legStartY - fingerWidth * 0.1);
         context.lineTo(x, footY);
-        context.lineTo(x - featherWidth * 0.25, footY + featherWidth * 0.2);
+        context.lineTo(x - fingerWidth * 0.28, footY + fingerWidth * 0.22);
         context.moveTo(x, footY);
-        context.lineTo(x + featherWidth * 0.25, footY + featherWidth * 0.2);
+        context.lineTo(x + fingerWidth * 0.28, footY + fingerWidth * 0.22);
         context.stroke();
     });
 
