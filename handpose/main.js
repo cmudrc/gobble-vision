@@ -3,6 +3,7 @@
 const VIDEO_WIDTH = 640;
 const VIDEO_HEIGHT = 500;
 const MAX_HANDS = 4;
+const CAPTURE_COUNTDOWN_SECONDS = 3;
 const PAPER = '#fffaf2';
 const INK = '#17383a';
 const BODY = '#8c4a2f';
@@ -51,6 +52,51 @@ let brushSize = 12;
 let palmRadiusScale = 1;
 let featherRadiusScale = 1;
 let toastTimer = null;
+let captureCountdown = null;
+
+function createCountdown(seconds, {
+    onTick = () => {},
+    onComplete = () => {},
+    schedule = setTimeout,
+    cancelScheduled = clearTimeout,
+} = {}) {
+    let remaining = Math.max(1, Math.floor(Number(seconds) || 1));
+    let active = true;
+    let timerId = null;
+
+    const scheduleNext = () => {
+        timerId = schedule(() => {
+            if (!active) return;
+            remaining -= 1;
+            if (remaining > 0) {
+                onTick(remaining);
+                scheduleNext();
+                return;
+            }
+            active = false;
+            timerId = null;
+            onComplete();
+        }, 1000);
+    };
+
+    onTick(remaining);
+    scheduleNext();
+    return {
+        cancel() {
+            if (!active) return;
+            active = false;
+            if (timerId !== null) cancelScheduled(timerId);
+            timerId = null;
+        },
+        get active() { return active; },
+        get remaining() { return remaining; },
+    };
+}
+
+function captureButtonLabel(handCount, timerEnabled = false) {
+    if (timerEnabled) return `Start ${CAPTURE_COUNTDOWN_SECONDS}s timer`;
+    return handCount > 1 ? `Capture ${handCount} turkeys` : 'Capture this pose';
+}
 
 function pointsFromPrediction(keypoints, videoWidth) {
     if (!Array.isArray(keypoints) || keypoints.length < 21) {
@@ -573,15 +619,56 @@ function hideCameraOverlay() {
     if (loading) loading.classList.add('is-hidden');
 }
 
+function timerIsEnabled() {
+    if (typeof document === 'undefined') return false;
+    const timerInput = document.getElementById('capture-timer');
+    return Boolean(timerInput && timerInput.checked);
+}
+
 function setCameraMessage(message, handCount = 0) {
     if (typeof document === 'undefined') return;
+    if (captureCountdown && captureCountdown.active) return;
     const status = document.getElementById('camera-status');
     const capture = document.getElementById('capture');
     if (status) status.textContent = message;
     if (capture) {
-        capture.disabled = handCount < 1;
-        capture.textContent = handCount > 1 ? `Capture ${handCount} turkeys` : 'Capture this pose';
+        const useTimer = timerIsEnabled();
+        capture.disabled = useTimer ? !isTracking : handCount < 1;
+        capture.textContent = captureButtonLabel(handCount, useTimer);
     }
+}
+
+function showCaptureCountdown(seconds) {
+    if (typeof document === 'undefined') return;
+    const overlay = document.getElementById('capture-countdown');
+    const number = document.getElementById('capture-countdown-number');
+    const status = document.getElementById('camera-status');
+    const capture = document.getElementById('capture');
+    if (overlay) {
+        overlay.classList.add('is-visible');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+    if (number) number.textContent = seconds;
+    if (status) status.textContent = `Photo in ${seconds}… Get every hand in frame.`;
+    if (capture) {
+        capture.disabled = true;
+        capture.textContent = `Photo in ${seconds}…`;
+    }
+}
+
+function hideCaptureCountdown() {
+    if (typeof document === 'undefined') return;
+    const overlay = document.getElementById('capture-countdown');
+    if (overlay) {
+        overlay.classList.remove('is-visible');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+}
+
+function cancelCaptureCountdown() {
+    if (captureCountdown) captureCountdown.cancel();
+    captureCountdown = null;
+    hideCaptureCountdown();
 }
 
 function cameraErrorMessage(error) {
@@ -695,6 +782,7 @@ function stopCameraStream() {
 }
 
 function stopTracking() {
+    cancelCaptureCountdown();
     startupRequestId += 1;
     isStarting = false;
     isTracking = false;
@@ -773,6 +861,25 @@ function captureTurkey() {
     if (!currentHands.length) return false;
     placeTurkeys(currentHands, 'Camera');
     stopTracking();
+    return true;
+}
+
+function startCaptureCountdown(seconds = CAPTURE_COUNTDOWN_SECONDS) {
+    if (!isTracking || (captureCountdown && captureCountdown.active)) return false;
+    captureCountdown = createCountdown(seconds, {
+        onTick: showCaptureCountdown,
+        onComplete: () => {
+            captureCountdown = null;
+            hideCaptureCountdown();
+            if (captureTurkey()) {
+                if (typeof window !== 'undefined' && window.TurkeyToolHelper) {
+                    window.TurkeyToolHelper.closeTurkeyCapture();
+                }
+                return;
+            }
+            setCameraMessage('No hands at the buzzer. Start the timer and try again.', 0);
+        },
+    });
     return true;
 }
 
@@ -935,7 +1042,24 @@ function initializeApp() {
         if (window.TurkeyToolHelper) window.TurkeyToolHelper.closeTurkeyCapture();
         placeSampleTurkey();
     });
+    document.getElementById('capture-timer').addEventListener('change', () => {
+        if (timerIsEnabled()) {
+            setCameraMessage('Timer ready. Start it, then put every hand in frame.', currentHands.length);
+            return;
+        }
+        const handCount = currentHands.length;
+        const message = handCount === 1
+            ? 'Hand found. Hold still, or make it weird.'
+            : handCount > 1
+                ? `${handCount} hands found. Hold still for the flock.`
+                : 'Open one or more hands and keep them inside the frame.';
+        setCameraMessage(message, handCount);
+    });
     document.getElementById('capture').addEventListener('click', () => {
+        if (timerIsEnabled()) {
+            startCaptureCountdown();
+            return;
+        }
         if (captureTurkey() && window.TurkeyToolHelper) window.TurkeyToolHelper.closeTurkeyCapture();
     });
     ['close-dialog', 'cancel-camera'].forEach((id) => document.getElementById(id).addEventListener('click', () => window.TurkeyToolHelper.closeTurkeyCapture()));
@@ -1001,7 +1125,7 @@ function initializeApp() {
 }
 
 if (typeof window !== 'undefined') {
-    window.GobbleVision = {startTracking, stopTracking, captureTurkey, renderStylizedTurkey, renderStylizedTurkeys};
+    window.GobbleVision = {startTracking, stopTracking, captureTurkey, startCaptureCountdown, renderStylizedTurkey, renderStylizedTurkeys};
     window.TurkeyHandpose = {stop: stopTurkeyExperience};
     window.startTracking = startTracking;
     window.stopTracking = stopTracking;
@@ -1024,6 +1148,9 @@ if (typeof module !== 'undefined' && module.exports) {
         SAMPLE_KEYPOINTS,
         THUMB_PATH,
         MAX_HANDS,
+        CAPTURE_COUNTDOWN_SECONDS,
+        createCountdown,
+        captureButtonLabel,
         calculateShapeWidths,
         calculatePalmGeometry,
         fillRoundedPalm,

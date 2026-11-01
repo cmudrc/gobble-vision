@@ -17,6 +17,7 @@ No camera? Choose **Try a sample pose**. The complete art studio works without c
 - The hand-pose model uses the current hand-pose-detection API with MediaPipe's browser runtime.
 - Multi-hand recognition turns up to four simultaneous hand poses into a balanced turkey flock.
 - A generated turkey replaces the raw camera capture, keeping the artwork playful and the background private.
+- An optional three-second camera timer lets everyone move away from the controls and put all available hands in frame.
 - A native canvas studio provides drawing, color, brush-size, undo, reset, and PNG download controls.
 - The interface works on phones, tablets, and desktops and includes reduced-motion and keyboard-focus support.
 - The project has no npm runtime or test dependencies.

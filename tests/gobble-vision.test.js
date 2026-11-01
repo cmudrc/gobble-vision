@@ -43,6 +43,55 @@ test('flock layout supports one to four hands without overlapping cells', () => 
     assert.ok(four[0].y + four[0].height < four[2].y);
 });
 
+test('optional capture timer counts down once and completes', () => {
+    const scheduled = [];
+    const ticks = [];
+    let completed = 0;
+    const countdown = app.createCountdown(3, {
+        onTick: (remaining) => ticks.push(remaining),
+        onComplete: () => { completed += 1; },
+        schedule: (callback) => {
+            scheduled.push(callback);
+            return callback;
+        },
+        cancelScheduled: () => {},
+    });
+
+    assert.deepEqual(ticks, [3]);
+    scheduled.shift()();
+    scheduled.shift()();
+    scheduled.shift()();
+    assert.deepEqual(ticks, [3, 2, 1]);
+    assert.equal(completed, 1);
+    assert.equal(countdown.active, false);
+});
+
+test('capture timer can be cancelled before the photo', () => {
+    const scheduled = [];
+    const cancelled = [];
+    let completed = 0;
+    const countdown = app.createCountdown(5, {
+        onComplete: () => { completed += 1; },
+        schedule: (callback) => {
+            scheduled.push(callback);
+            return callback;
+        },
+        cancelScheduled: (timerId) => cancelled.push(timerId),
+    });
+
+    countdown.cancel();
+    scheduled.shift()();
+    assert.equal(completed, 0);
+    assert.equal(countdown.active, false);
+    assert.equal(cancelled.length, 1);
+});
+
+test('capture button makes the timer choice explicit', () => {
+    assert.equal(app.captureButtonLabel(0, true), 'Start 3s timer');
+    assert.equal(app.captureButtonLabel(1, false), 'Capture this pose');
+    assert.equal(app.captureButtonLabel(4, false), 'Capture 4 turkeys');
+});
+
 test('thumb guide and turkey neck begin at the outward thumb knuckle', () => {
     assert.deepEqual(app.THUMB_PATH, [2, 3, 4]);
 });
