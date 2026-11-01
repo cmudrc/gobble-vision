@@ -77,7 +77,7 @@ function calculateTransform(keypoints, width, height) {
     return {
         scale,
         offsetX: (width - spanX * scale) / 2 - minX * scale,
-        offsetY: (height - spanY * scale) / 2 - minY * scale - height * 0.01,
+        offsetY: (height - spanY * scale) / 2 - minY * scale - height * 0.04,
     };
 }
 
@@ -243,6 +243,60 @@ function fillRoundedPalm(context, palm, radius) {
     context.fill();
 }
 
+function calculateLegGeometry(palm, fingerWidth) {
+    const down = [-palm.forward[0], -palm.forward[1]];
+    const legLength = fingerWidth * 1.22;
+    const toeLength = fingerWidth * 0.5;
+    return [-1, 1].map((side) => {
+        const start = addVector(
+            addVector(palm.wrist, palm.across, side * palm.palmWidth * 0.16),
+            down,
+            fingerWidth * 0.18,
+        );
+        const ankle = addVector(start, down, legLength);
+        const knee = addVector(
+            interpolatePoint(start, ankle, 0.52),
+            palm.across,
+            side * fingerWidth * 0.07,
+        );
+        const toes = [-1, 0, 1].map((spread) => {
+            const direction = normalizeVector([
+                down[0] * 0.55 + palm.across[0] * spread,
+                down[1] * 0.55 + palm.across[1] * spread,
+            ]);
+            return addVector(ankle, direction, toeLength);
+        });
+        return {start, knee, ankle, toes};
+    });
+}
+
+function traceTurkeyLeg(context, leg) {
+    context.beginPath();
+    context.moveTo(leg.start[0], leg.start[1]);
+    context.quadraticCurveTo(leg.knee[0], leg.knee[1], leg.ankle[0], leg.ankle[1]);
+    leg.toes.forEach((toe) => {
+        context.moveTo(leg.ankle[0], leg.ankle[1]);
+        context.lineTo(toe[0], toe[1]);
+    });
+}
+
+function drawTurkeyLegs(context, palm, fingerWidth) {
+    const legWidth = Math.max(7, fingerWidth * 0.15);
+    const legs = calculateLegGeometry(palm, fingerWidth);
+    legs.forEach((leg) => {
+        traceTurkeyLeg(context, leg);
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.strokeStyle = 'rgba(23,56,58,.34)';
+        context.lineWidth = legWidth + Math.max(3, legWidth * 0.45);
+        context.stroke();
+        traceTurkeyLeg(context, leg);
+        context.strokeStyle = '#d8a126';
+        context.lineWidth = legWidth;
+        context.stroke();
+    });
+}
+
 function tracePath(context, points, indices) {
     const first = points[indices[0]];
     context.beginPath();
@@ -283,6 +337,7 @@ function renderStylizedTurkey(context, keypoints, width, height) {
         strokeRoundedPath(context, points, path, FEATHER_COLORS[index], fingerWidth);
     });
 
+    drawTurkeyLegs(context, palm, fingerWidth);
     strokeRoundedPath(context, points, THUMB_PATH, BODY, fingerWidth * 0.84);
 
     fillRoundedPalm(context, palm, fingerWidth * 0.5);
@@ -313,22 +368,6 @@ function renderStylizedTurkey(context, keypoints, width, height) {
     fillCircle(context, eye[0] + thumbDirection[0] * headRadius * 0.04, eye[1] + thumbDirection[1] * headRadius * 0.04, headRadius * 0.08, INK);
     const wattle = addVector(addVector(head, thumbDirection, headRadius * 0.34), faceNormal, -headRadius * 0.62);
     fillCircle(context, wattle[0], wattle[1], headRadius * 0.25, '#c63f32');
-
-    const legStartY = Math.max(palm.wristIndex[1], palm.wristPinky[1]);
-    const footY = Math.min(height - 72, legStartY + fingerWidth * 1.3);
-    [-0.15, 0.15].forEach((offset) => {
-        const x = palm.wrist[0] + palm.palmWidth * offset;
-        context.strokeStyle = '#d8a126';
-        context.lineWidth = Math.max(6, fingerWidth * 0.11);
-        context.lineCap = 'round';
-        context.beginPath();
-        context.moveTo(x, legStartY - fingerWidth * 0.1);
-        context.lineTo(x, footY);
-        context.lineTo(x - fingerWidth * 0.28, footY + fingerWidth * 0.22);
-        context.moveTo(x, footY);
-        context.lineTo(x + fingerWidth * 0.28, footY + fingerWidth * 0.22);
-        context.stroke();
-    });
 
     context.fillStyle = '#0b4f54';
     context.font = `700 ${Math.max(17, width * 0.018)}px system-ui, sans-serif`;
@@ -761,6 +800,8 @@ if (typeof module !== 'undefined' && module.exports) {
         THUMB_PATH,
         calculatePalmGeometry,
         fillRoundedPalm,
+        calculateLegGeometry,
+        drawTurkeyLegs,
         pointsFromPrediction,
         cameraErrorMessage,
         calculateTransform,

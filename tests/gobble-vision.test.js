@@ -58,6 +58,18 @@ test('rounded palm uses a full diameter stroke around the palm contour', () => {
     assert.ok(calls.some(([name]) => name === 'fill'));
 });
 
+test('turkey feet follow the palm direction and have three toes each', () => {
+    const palm = app.calculatePalmGeometry(app.SAMPLE_KEYPOINTS, 40);
+    const legs = app.calculateLegGeometry(palm, 40);
+    assert.equal(legs.length, 2);
+    legs.forEach((leg) => {
+        assert.equal(leg.toes.length, 3);
+        const awayFromPalm = [leg.ankle[0] - palm.wrist[0], leg.ankle[1] - palm.wrist[1]];
+        const towardFingers = awayFromPalm[0] * palm.forward[0] + awayFromPalm[1] * palm.forward[1];
+        assert.ok(towardFingers < 0);
+    });
+});
+
 test('camera errors are translated into useful next steps', () => {
     const error = new Error('Requested device not found');
     error.name = 'NotFoundError';
