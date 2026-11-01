@@ -70,6 +70,17 @@ test('turkey feet follow the palm direction and have three toes each', () => {
     });
 });
 
+test('palm and feather radius controls scale independently', () => {
+    assert.deepEqual(
+        app.calculateShapeWidths(40, {palmRadius: 1.5, featherRadius: 0.5}),
+        {palmRadius: 30, featherWidth: 20},
+    );
+    assert.deepEqual(
+        app.calculateShapeWidths(40, {palmRadius: 0.5, featherRadius: 1.5}),
+        {palmRadius: 10, featherWidth: 60},
+    );
+});
+
 test('camera errors are translated into useful next steps', () => {
     const error = new Error('Requested device not found');
     error.name = 'NotFoundError';

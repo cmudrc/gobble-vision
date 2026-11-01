@@ -41,6 +41,10 @@ main { overflow:hidden; } .hero,.studio,.how-it-works,footer { max-width:1180px;
 .artboard-empty__icon { margin-bottom:8px; font-size:52px; } .artboard-empty strong { color:var(--teal-800); font-size:18px; } .artboard-empty.is-hidden { display:none; }
 .toolbar { padding:22px; color:var(--ink); background:var(--paper); border-radius:18px; display:flex; flex-direction:column; gap:24px; }
 .tool-group { display:grid; gap:10px; } .tool-label { display:flex; justify-content:space-between; color:var(--muted); text-transform:uppercase; letter-spacing:.09em; font-size:11px; font-weight:700; }
+.tool-group--shape { padding-block:2px; gap:14px; }
+.range-control { display:grid; gap:7px; }
+.range-control label { display:flex; justify-content:space-between; gap:12px; color:var(--ink); font-size:12px; font-weight:650; }
+.range-control output { color:var(--muted); font-variant-numeric:tabular-nums; }
 .swatches { display:grid; grid-template-columns:repeat(5,1fr); gap:7px; } .swatch { aspect-ratio:1; padding:0; border:2px solid var(--paper); outline:1px solid var(--line); background:var(--swatch); border-radius:50%; cursor:pointer; } .swatch.is-selected { outline:3px solid var(--orange); outline-offset:2px; }
 input[type='range'] { width:100%; accent-color:var(--orange); }
 .toolbar__buttons { display:grid; gap:8px; } .tool-button { display:flex; align-items:center; gap:9px; padding:10px 0; border:0; border-bottom:1px solid var(--line); background:transparent; cursor:pointer; text-align:left; font-weight:600; } .tool-button:disabled { opacity:.38; cursor:not-allowed; }

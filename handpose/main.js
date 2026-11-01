@@ -39,12 +39,16 @@ let isStarting = false;
 let startupRequestId = 0;
 let detectionErrorCount = 0;
 let currentKeypoints = null;
+let placedKeypoints = null;
+let placedSource = null;
 let artboard = null;
 let artboardContext = null;
 let artHistory = [];
 let drawing = false;
 let brushColor = '#123f43';
 let brushSize = 12;
+let palmRadiusScale = 1;
+let featherRadiusScale = 1;
 let toastTimer = null;
 
 function pointsFromPrediction(keypoints, videoWidth) {
@@ -311,7 +315,18 @@ function fillCircle(context, x, y, radius, color) {
     context.fill();
 }
 
-function renderStylizedTurkey(context, keypoints, width, height) {
+function calculateShapeWidths(baseFingerWidth, options = {}) {
+    const clampScale = (value) => {
+        const number = Number(value);
+        return Number.isFinite(number) ? Math.min(1.5, Math.max(0.5, number)) : 1;
+    };
+    return {
+        featherWidth: baseFingerWidth * clampScale(options.featherRadius),
+        palmRadius: baseFingerWidth * 0.5 * clampScale(options.palmRadius),
+    };
+}
+
+function renderStylizedTurkey(context, keypoints, width, height, shapeOptions = {}) {
     const transform = calculateTransform(keypoints, width, height);
     const points = keypoints.map((point) => mapPoint(point, transform));
     const measuredPalmWidth = distanceBetween(points[5], points[17]);
@@ -319,6 +334,7 @@ function renderStylizedTurkey(context, keypoints, width, height) {
         Math.max(measuredPalmWidth * 0.22, width * 0.026),
         width * 0.058,
     );
+    const shapeWidths = calculateShapeWidths(fingerWidth, shapeOptions);
     const palm = calculatePalmGeometry(points, fingerWidth);
 
     context.save();
@@ -334,13 +350,13 @@ function renderStylizedTurkey(context, keypoints, width, height) {
     }
 
     TAIL_PATHS.forEach((path, index) => {
-        strokeRoundedPath(context, points, path, FEATHER_COLORS[index], fingerWidth);
+        strokeRoundedPath(context, points, path, FEATHER_COLORS[index], shapeWidths.featherWidth);
     });
 
     drawTurkeyLegs(context, palm, fingerWidth);
     strokeRoundedPath(context, points, THUMB_PATH, BODY, fingerWidth * 0.84);
 
-    fillRoundedPalm(context, palm, fingerWidth * 0.5);
+    fillRoundedPalm(context, palm, shapeWidths.palmRadius);
 
     const head = points[4];
     const headRadius = fingerWidth * 0.56;
@@ -643,11 +659,28 @@ function pushHistory() {
 
 function placeTurkey(keypoints, source) {
     if (!artboardContext) return;
-    renderStylizedTurkey(artboardContext, keypoints, artboard.width, artboard.height);
+    placedKeypoints = keypoints.map((point) => [...point]);
+    placedSource = source;
+    renderStylizedTurkey(artboardContext, placedKeypoints, artboard.width, artboard.height, {
+        palmRadius: palmRadiusScale,
+        featherRadius: featherRadiusScale,
+    });
     artHistory = [];
     pushHistory();
     document.getElementById('studio-status').textContent = `${source} turkey captured. Add a note, doodle, or finishing touch.`;
     document.getElementById('studio').scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+function reshapePlacedTurkey() {
+    if (!artboardContext || !placedKeypoints) return false;
+    renderStylizedTurkey(artboardContext, placedKeypoints, artboard.width, artboard.height, {
+        palmRadius: palmRadiusScale,
+        featherRadius: featherRadiusScale,
+    });
+    artHistory = [];
+    pushHistory();
+    document.getElementById('studio-status').textContent = `${placedSource} turkey reshaped. Add a note, doodle, or finishing touch.`;
+    return true;
 }
 
 function placeSampleTurkey() {
@@ -747,6 +780,20 @@ function initializeApp() {
         document.getElementById('brush-size-output').value = brushSize;
     });
 
+    const bindShapeSlider = (id, outputId, setScale) => {
+        const input = document.getElementById(id);
+        input.addEventListener('input', () => {
+            setScale(Number(input.value) / 100);
+            document.getElementById(outputId).value = `${input.value}%`;
+            reshapePlacedTurkey();
+        });
+        input.addEventListener('change', () => {
+            if (placedKeypoints) showToast('Turkey shape updated. Fresh canvas, ready to decorate.');
+        });
+    };
+    bindShapeSlider('palm-radius', 'palm-radius-output', (value) => { palmRadiusScale = value; });
+    bindShapeSlider('feather-radius', 'feather-radius-output', (value) => { featherRadiusScale = value; });
+
     document.getElementById('undo').addEventListener('click', () => {
         if (artHistory.length < 2) return;
         artHistory.pop();
@@ -798,6 +845,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SAMPLE_KEYPOINTS,
         THUMB_PATH,
+        calculateShapeWidths,
         calculatePalmGeometry,
         fillRoundedPalm,
         calculateLegGeometry,

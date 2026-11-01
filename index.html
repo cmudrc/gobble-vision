@@ -58,6 +58,17 @@
                         <button class="swatch" type="button" data-color="#f7efe1" style="--swatch:#f7efe1" aria-label="Cream eraser" aria-checked="false" role="radio"></button>
                     </div>
                 </div>
+                <div class="tool-group tool-group--shape">
+                    <span class="tool-label">Turkey shape</span>
+                    <div class="range-control">
+                        <label for="palm-radius"><span>Palm radius</span><output id="palm-radius-output">100%</output></label>
+                        <input id="palm-radius" type="range" min="50" max="150" step="5" value="100">
+                    </div>
+                    <div class="range-control">
+                        <label for="feather-radius"><span>Feather radius</span><output id="feather-radius-output">100%</output></label>
+                        <input id="feather-radius" type="range" min="50" max="150" step="5" value="100">
+                    </div>
+                </div>
                 <div class="tool-group">
                     <label class="tool-label" for="brush-size">Brush size <output id="brush-size-output">12</output></label>
                     <input id="brush-size" type="range" min="4" max="42" value="12">
@@ -117,7 +128,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@2.0.1/dist/hand-pose-detection.min.js"></script>
 <script src="handpose/geometry.js"></script>
-<script src="handpose/main.js?v=20261101-better-feet"></script>
+<script src="handpose/main.js?v=20261101-shape-sliders"></script>
 <script src="handpose/turkey-tool-helper.js"></script>
 </body>
 </html>
