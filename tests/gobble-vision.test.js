@@ -32,6 +32,12 @@ test('thumb guide and turkey neck begin at the outward thumb knuckle', () => {
     assert.deepEqual(app.THUMB_PATH, [2, 3, 4]);
 });
 
+test('the same outward thumb knuckle defines the thumb-side palm boundary', () => {
+    const palm = app.calculatePalmGeometry(app.SAMPLE_KEYPOINTS, 40);
+    assert.deepEqual(palm.thumbJoint, app.SAMPLE_KEYPOINTS[app.THUMB_PATH[0]]);
+    assert.deepEqual(palm.thumbBaseControl, app.SAMPLE_KEYPOINTS[1]);
+});
+
 test('camera errors are translated into useful next steps', () => {
     const error = new Error('Requested device not found');
     error.name = 'NotFoundError';

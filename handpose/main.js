@@ -144,6 +144,8 @@ function strokeRoundedPath(context, points, indices, color, width) {
 
 function calculatePalmGeometry(points, fingerWidth) {
     const wrist = points[0];
+    const thumbBaseControl = points[1];
+    const thumbJoint = points[THUMB_PATH[0]];
     const indexKnuckle = points[5];
     const middleKnuckle = points[9];
     const ringKnuckle = points[13];
@@ -163,7 +165,7 @@ function calculatePalmGeometry(points, fingerWidth) {
     const wristHalfWidth = palmWidth * 0.3;
     const indexOuter = addVector(indexKnuckle, across, sidePadding);
     const pinkyOuter = addVector(pinkyKnuckle, across, -sidePadding);
-    const indexSide = addVector(interpolatePoint(indexKnuckle, wrist, 0.55), across, sidePadding * 0.8);
+    const thumbWebControl = interpolatePoint(thumbJoint, indexOuter, 0.56);
     const pinkySide = addVector(interpolatePoint(pinkyKnuckle, wrist, 0.55), across, -sidePadding * 0.8);
     const wristIndex = addVector(addVector(wrist, across, wristHalfWidth), forward, -fingerWidth * 0.18);
     const wristPinky = addVector(addVector(wrist, across, -wristHalfWidth), forward, -fingerWidth * 0.18);
@@ -171,6 +173,9 @@ function calculatePalmGeometry(points, fingerWidth) {
     const palmCenter = interpolatePoint(wrist, knuckleCenter, 0.52);
     return {
         wrist,
+        thumbBaseControl,
+        thumbJoint,
+        thumbWebControl,
         indexKnuckle,
         middleKnuckle,
         ringKnuckle,
@@ -183,7 +188,6 @@ function calculatePalmGeometry(points, fingerWidth) {
         palmCenter,
         indexOuter,
         pinkyOuter,
-        indexSide,
         pinkySide,
         wristIndex,
         wristPinky,
@@ -211,9 +215,12 @@ function tracePalm(context, palm) {
         palm.cuffCenter[0], palm.cuffCenter[1],
         palm.wristIndex[0], palm.wristIndex[1],
     );
-    context.bezierCurveTo(
-        palm.wristIndex[0], palm.wristIndex[1],
-        palm.indexSide[0], palm.indexSide[1],
+    context.quadraticCurveTo(
+        palm.thumbBaseControl[0], palm.thumbBaseControl[1],
+        palm.thumbJoint[0], palm.thumbJoint[1],
+    );
+    context.quadraticCurveTo(
+        palm.thumbWebControl[0], palm.thumbWebControl[1],
         palm.indexOuter[0], palm.indexOuter[1],
     );
     context.closePath();
@@ -761,6 +768,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SAMPLE_KEYPOINTS,
         THUMB_PATH,
+        calculatePalmGeometry,
         pointsFromPrediction,
         cameraErrorMessage,
         calculateTransform,
