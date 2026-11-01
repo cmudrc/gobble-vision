@@ -226,6 +226,23 @@ function tracePalm(context, palm) {
     context.closePath();
 }
 
+function fillRoundedPalm(context, palm, radius) {
+    const outlinePadding = Math.max(5, radius * 0.28);
+    tracePalm(context, palm);
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.strokeStyle = 'rgba(23,56,58,.34)';
+    context.lineWidth = radius * 2 + outlinePadding;
+    context.stroke();
+    tracePalm(context, palm);
+    context.strokeStyle = BODY;
+    context.lineWidth = radius * 2;
+    context.stroke();
+    tracePalm(context, palm);
+    context.fillStyle = BODY;
+    context.fill();
+}
+
 function tracePath(context, points, indices) {
     const first = points[indices[0]];
     context.beginPath();
@@ -268,33 +285,7 @@ function renderStylizedTurkey(context, keypoints, width, height) {
 
     strokeRoundedPath(context, points, THUMB_PATH, BODY, fingerWidth * 0.84);
 
-    tracePalm(context, palm);
-    context.fillStyle = BODY;
-    context.fill();
-    tracePalm(context, palm);
-    context.strokeStyle = 'rgba(23,56,58,.42)';
-    context.lineWidth = Math.max(4, fingerWidth * 0.1);
-    context.lineJoin = 'round';
-    context.stroke();
-
-    const upperCreaseStart = interpolatePoint(palm.indexKnuckle, palm.wrist, 0.38);
-    const upperCreaseEnd = interpolatePoint(palm.pinkyKnuckle, palm.wrist, 0.4);
-    const creaseControl = addVector(palm.palmCenter, palm.forward, -palm.palmLength * 0.08);
-    context.beginPath();
-    context.moveTo(upperCreaseStart[0], upperCreaseStart[1]);
-    context.quadraticCurveTo(creaseControl[0], creaseControl[1], upperCreaseEnd[0], upperCreaseEnd[1]);
-    context.strokeStyle = 'rgba(255,250,242,.3)';
-    context.lineWidth = Math.max(3, fingerWidth * 0.065);
-    context.lineCap = 'round';
-    context.stroke();
-
-    const lifeLineStart = interpolatePoint(palm.indexKnuckle, palm.wrist, 0.26);
-    const lifeLineEnd = interpolatePoint(palm.indexKnuckle, palm.wrist, 0.72);
-    const lifeLineControl = addVector(interpolatePoint(lifeLineStart, lifeLineEnd, 0.5), palm.across, palm.palmWidth * 0.14);
-    context.beginPath();
-    context.moveTo(lifeLineStart[0], lifeLineStart[1]);
-    context.quadraticCurveTo(lifeLineControl[0], lifeLineControl[1], lifeLineEnd[0], lifeLineEnd[1]);
-    context.stroke();
+    fillRoundedPalm(context, palm, fingerWidth * 0.5);
 
     const head = points[4];
     const headRadius = fingerWidth * 0.56;
@@ -769,6 +760,7 @@ if (typeof module !== 'undefined' && module.exports) {
         SAMPLE_KEYPOINTS,
         THUMB_PATH,
         calculatePalmGeometry,
+        fillRoundedPalm,
         pointsFromPrediction,
         cameraErrorMessage,
         calculateTransform,

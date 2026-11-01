@@ -38,6 +38,26 @@ test('the same outward thumb knuckle defines the thumb-side palm boundary', () =
     assert.deepEqual(palm.thumbBaseControl, app.SAMPLE_KEYPOINTS[1]);
 });
 
+test('rounded palm uses a full diameter stroke around the palm contour', () => {
+    const calls = [];
+    const context = new Proxy({}, {
+        get(target, property) {
+            if (!(property in target)) target[property] = (...args) => calls.push([property, ...args]);
+            return target[property];
+        },
+        set(target, property, value) {
+            calls.push([`set:${String(property)}`, value]);
+            target[property] = value;
+            return true;
+        },
+    });
+    const palm = app.calculatePalmGeometry(app.SAMPLE_KEYPOINTS, 40);
+    app.fillRoundedPalm(context, palm, 20);
+    assert.ok(calls.some(([name, value]) => name === 'set:lineJoin' && value === 'round'));
+    assert.ok(calls.some(([name, value]) => name === 'set:lineWidth' && value === 40));
+    assert.ok(calls.some(([name]) => name === 'fill'));
+});
+
 test('camera errors are translated into useful next steps', () => {
     const error = new Error('Requested device not found');
     error.name = 'NotFoundError';
