@@ -1,128 +1,116 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-
     <meta charset="utf-8">
-    <title>Hand Turkey</title>
-    <meta name="viewport" content="width=device-width, initial-scale=0.7, shrink-to-fit=no, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0b4f54">
+    <meta name="description" content="Turn a hand pose into a one-of-a-kind digital turkey with an in-browser machine learning model.">
+    <title>GobbleVision | AI Hand Turkey Studio</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><text y=%2252%22 font-size=%2252%22>🦃</text></svg>">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="stylesheet" href="style.css">
-
-    <!-- Bootstrap -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-          integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
-            integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
-            crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
-            integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN"
-            crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
-            integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
-            crossorigin="anonymous"></script>
-
-    <!-- stylesheet for literally-canvas-->
-    <link href="assets/literallycanvas.css" rel="stylesheet">
-
-    <!-- Require the peer dependencies of handpose. -->
-    <script src="https://unpkg.com/@tensorflow/tfjs-core@2.1.0/dist/tf-core.js"></script>
-    <script src="https://unpkg.com/@tensorflow/tfjs-converter@2.1.0/dist/tf-converter.js"></script>
-
-    <!-- You must explicitly require a TF.js backend if you're not using the tfs union bundle. -->
-    <!--    <script src="https://unpkg.com/@tensorflow/tfjs-backend-cpu@2.1.0/dist/tf-backend-cpu.js"></script>-->
-    <script src="https://unpkg.com/@tensorflow/tfjs-backend-webgl@2.1.0/dist/tf-backend-webgl.js"></script>
-    <script src="https://unpkg.com/@tensorflow-models/handpose@0.0.6/dist/handpose.js"></script>
-
 </head>
-
-
 <body>
+<header class="site-header">
+    <a class="brand" href="https://cmudrc.github.io/" aria-label="Design Research Collective home">
+        <span class="brand__mark" aria-hidden="true">DRC</span>
+        <span class="brand__name">Design Research Collective</span>
+    </a>
+    <a class="source-link" href="https://github.com/cmudrc/gobble-vision">View source <span aria-hidden="true">↗</span></a>
+</header>
 
-<div class="container-fluid p-5">
-    <div class="alert alert-danger d-none" id="info" role="alert" aria-live="polite"></div>
-    <div class="fs-container">
-        <div id="lc"></div>
-    </div>
-</div>
-
-<!-- Modal -->
-<div class="modal fade" id="turkeyModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
-     aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="exampleModalLongTitle">Capture your turkey once it looks about right!</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+<main>
+    <section class="hero" aria-labelledby="hero-title">
+        <div class="hero__copy">
+            <p class="eyebrow">A tiny Thanksgiving experiment from the DRC</p>
+            <h1 id="hero-title">Hold up a hand.<br><em>Make a turkey.</em></h1>
+            <p class="hero__lede">GobbleVision uses an in-browser hand-pose model to turn your pose into a one-of-a-kind digital turkey. Decorate it, download it, and send it to somebody you are thankful for.</p>
+            <div class="hero__actions">
+                <button class="button button--primary" id="start-camera" type="button"><span aria-hidden="true">◉</span> Start with my camera</button>
+                <button class="button button--quiet" id="sample-pose" type="button">Try a sample pose</button>
             </div>
-            <div class="modal-body">
-                <div class="d-flex justify-content-center" id="spinner">
-                    <div class="spinner-border text-primary" style="width: 5rem; height: 5rem;" role="status">
-                        <span class="sr-only">Loading...</span>
+            <p class="privacy-note"><span aria-hidden="true">●</span> Your camera stays on your device. No photo or video is uploaded.</p>
+        </div>
+        <div class="hero__bird" aria-hidden="true">
+            <span class="feather feather--1"></span><span class="feather feather--2"></span><span class="feather feather--3"></span><span class="feather feather--4"></span><span class="feather feather--5"></span>
+            <span class="bird-body"><span class="bird-eye"></span><span class="bird-beak"></span></span>
+        </div>
+    </section>
+
+    <section class="studio" id="studio" aria-labelledby="studio-title">
+        <div class="studio__heading">
+            <div><p class="section-kicker">The studio</p><h2 id="studio-title">Make it yours</h2></div>
+            <p class="studio__status" id="studio-status" role="status" aria-live="polite">Choose a camera or sample pose to begin.</p>
+        </div>
+        <div class="studio__workspace">
+            <div class="artboard-shell">
+                <canvas id="artboard" width="1200" height="900" aria-label="Your digital hand turkey drawing"></canvas>
+                <div class="artboard-empty" id="artboard-empty"><span class="artboard-empty__icon" aria-hidden="true">✋</span><strong>Your turkey will land here</strong><span>Use the camera or try the sample pose.</span></div>
+            </div>
+            <aside class="toolbar" aria-label="Drawing tools">
+                <div class="tool-group">
+                    <span class="tool-label">Ink</span>
+                    <div class="swatches" id="swatches" role="radiogroup" aria-label="Brush color">
+                        <button class="swatch is-selected" type="button" data-color="#123f43" style="--swatch:#123f43" aria-label="Deep teal" aria-checked="true" role="radio"></button>
+                        <button class="swatch" type="button" data-color="#e7592d" style="--swatch:#e7592d" aria-label="Persimmon" aria-checked="false" role="radio"></button>
+                        <button class="swatch" type="button" data-color="#d8a126" style="--swatch:#d8a126" aria-label="Golden yellow" aria-checked="false" role="radio"></button>
+                        <button class="swatch" type="button" data-color="#7c3f58" style="--swatch:#7c3f58" aria-label="Plum" aria-checked="false" role="radio"></button>
+                        <button class="swatch" type="button" data-color="#f7efe1" style="--swatch:#f7efe1" aria-label="Cream eraser" aria-checked="false" role="radio"></button>
                     </div>
                 </div>
-                <div id="canvas-wrapper" class="d-flex justify-content-center">
-                    <canvas id="output" style=""></canvas>
-                    <video id="video" playsinline></video>
+                <div class="tool-group">
+                    <label class="tool-label" for="brush-size">Brush size <output id="brush-size-output">12</output></label>
+                    <input id="brush-size" type="range" min="4" max="42" value="12">
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                <button type="button" id="btn-capture" class="btn btn-primary" data-dismiss="modal">Capture Turkey
-                </button>
-            </div>
+                <div class="toolbar__buttons">
+                    <button class="tool-button" id="undo" type="button" disabled><span aria-hidden="true">↶</span> Undo</button>
+                    <button class="tool-button" id="clear" type="button" disabled><span aria-hidden="true">◇</span> Reset</button>
+                    <button class="tool-button" id="new-turkey" type="button"><span aria-hidden="true">◉</span> New pose</button>
+                </div>
+                <button class="button button--download" id="download" type="button" disabled>Download PNG <span aria-hidden="true">↓</span></button>
+            </aside>
         </div>
+    </section>
+
+    <section class="how-it-works" aria-labelledby="how-title">
+        <p class="section-kicker">How it works</p>
+        <h2 id="how-title">A familiar craft, a new kind of tracing paper.</h2>
+        <div class="steps">
+            <article><span>01</span><h3>Find your hand</h3><p>The model estimates 21 landmarks from the live camera feed. Processing happens in your browser.</p></article>
+            <article><span>02</span><h3>Build the bird</h3><p>GobbleVision maps your pose into a playful turkey made from a body, feathers, beak, feet, and attitude.</p></article>
+            <article><span>03</span><h3>Finish the story</h3><p>Add your own marks, download the image, and share it. Your artwork remains yours.</p></article>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <p>Made for Thanksgiving by the <a href="https://cmudrc.github.io/">Design Research Collective</a> at Carnegie Mellon University.</p>
+    <p>Built with <a href="https://github.com/tensorflow/tfjs-models/tree/master/hand-pose-detection">TensorFlow.js hand pose detection</a>.</p>
+</footer>
+
+<dialog id="turkey-dialog" aria-labelledby="dialog-title">
+    <div class="dialog__header">
+        <div><p class="section-kicker">Camera studio</p><h2 id="dialog-title">Show us your best turkey pose</h2></div>
+        <button class="dialog__close" id="close-dialog" type="button" aria-label="Close camera">×</button>
     </div>
-</div>
+    <div class="camera-stage">
+        <video id="video" playsinline muted aria-hidden="true"></video>
+        <canvas id="preview" width="640" height="500" aria-label="Live camera preview with hand pose overlay"></canvas>
+        <div class="camera-loading" id="camera-loading"><span class="loader" aria-hidden="true"></span><strong>Warming up the model…</strong><span>This can take a few seconds the first time.</span></div>
+    </div>
+    <p class="camera-status" id="camera-status" role="status" aria-live="polite">Preparing the camera…</p>
+    <div class="dialog__actions">
+        <button class="button button--quiet" id="cancel-camera" type="button">Cancel</button>
+        <button class="button button--primary" id="capture" type="button" disabled>Capture this pose</button>
+    </div>
+</dialog>
 
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@2.0.1/dist/hand-pose-detection.min.js"></script>
 <script src="handpose/geometry.js"></script>
 <script src="handpose/main.js"></script>
-<script src="handpose/offset.min.js"></script>
 <script src="handpose/turkey-tool-helper.js"></script>
-<script src="js_libs/react-0.14.3.js"></script>
-<script src="js_libs/literallycanvas.js"></script>
-
-<script>
-    const turkeyModal = $("#turkeyModal");
-    turkeyModal.modal({backdrop: 'static', keyboard: false});
-    turkeyModal.on('hidden.bs.modal', () => {
-        const controls = window.TurkeyHandpose;
-        if (controls && typeof controls.stop === 'function') {
-            controls.stop();
-        }
-    });
-</script>
-
-<script type="text/javascript">
-    let el = document.getElementById("lc");
-
-    let Turkey = function (lc) {  // take lc as constructor arg
-        return {
-            name: 'Capture Turkey',
-            iconName: 'turkey',
-            optionsStyle: 'null',
-            didBecomeActive: function () {
-                if (window.TurkeyToolHelper &&
-                    typeof window.TurkeyToolHelper.restartTurkeyCapture === 'function') {
-                    window.TurkeyToolHelper.restartTurkeyCapture().catch(function (error) {
-                        console.error('Unable to restart turkey capture', error);
-                    });
-                }
-            }
-        }
-    };
-
-    let lc = LC.init(el, {
-        imageURLPrefix: './assets/lc-images',
-        toolbarPosition: 'bottom',
-        defaultStrokeWidth: 8,
-        strokeWidths: [2, 4, 8, 16, 32],
-        tools: LC.defaultTools.concat([Turkey])
-    });
-
-</script>
 </body>
 </html>
-
-

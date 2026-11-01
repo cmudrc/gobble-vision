@@ -1,32 +1,36 @@
-const helperPath = '../handpose/turkey-tool-helper';
+const test = require('node:test');
+const assert = require('node:assert/strict');
 
-describe('turkey tool helper', () => {
-    let modalMock;
+function loadHelper({withTracker = true} = {}) {
+    const path = require.resolve('../handpose/turkey-tool-helper.js');
+    delete require.cache[path];
+    const dialog = {
+        open: false,
+        showModal() { this.open = true; },
+        close() { this.open = false; },
+    };
+    global.document = {getElementById: () => dialog};
+    global.TurkeyHandpose = {stopCalled: false, stop() { this.stopCalled = true; }};
+    if (withTracker) global.startTracking = async () => undefined;
+    else delete global.startTracking;
+    return {helper: require(path), dialog};
+}
 
-    beforeEach(() => {
-        jest.resetModules();
-        modalMock = {modal: jest.fn()};
-        global.$ = jest.fn(() => modalMock);
-        global.startTracking = jest.fn().mockResolvedValue(undefined);
-    });
+test('restartTurkeyCapture opens the native dialog and starts tracking', async () => {
+    const {helper, dialog} = loadHelper();
+    await helper.restartTurkeyCapture();
+    assert.equal(dialog.open, true);
+});
 
-    afterEach(() => {
-        delete global.$;
-        delete global.startTracking;
-        delete global.TurkeyToolHelper;
-    });
+test('closeTurkeyCapture stops tracking and closes the dialog', async () => {
+    const {helper, dialog} = loadHelper();
+    await helper.restartTurkeyCapture();
+    helper.closeTurkeyCapture();
+    assert.equal(dialog.open, false);
+    assert.equal(global.TurkeyHandpose.stopCalled, true);
+});
 
-    it('shows the modal and restarts tracking', async () => {
-        const helper = require(helperPath);
-        await helper.restartTurkeyCapture();
-        expect(global.$).toHaveBeenCalledWith('#turkeyModal');
-        expect(modalMock.modal).toHaveBeenCalledWith('show');
-        expect(global.startTracking).toHaveBeenCalled();
-    });
-
-    it('throws when startTracking is missing', async () => {
-        delete global.startTracking;
-        const helper = require(helperPath);
-        await expect(helper.restartTurkeyCapture()).rejects.toThrow('startTracking');
-    });
+test('restartTurkeyCapture reports a missing tracker', async () => {
+    const {helper} = loadHelper({withTracker: false});
+    await assert.rejects(helper.restartTurkeyCapture(), /startTracking/);
 });

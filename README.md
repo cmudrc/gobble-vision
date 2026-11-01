@@ -1,43 +1,64 @@
-# TensorFlow Turkey
+# GobbleVision
 
-Modern hand turkeys for the 21st century.
+**Hold up a hand. Make a turkey.**
 
-The app combines TensorFlow.js handpose detection with Literally Canvas so you can trace your hand in augmented reality and save it alongside your doodles.
+GobbleVision is a browser-based Thanksgiving experiment from the [Design Research Collective](https://cmudrc.github.io/) at Carnegie Mellon University. It uses a TensorFlow.js hand-pose model to turn 21 landmarks into a stylized digital turkey. You can decorate the result and download it as a PNG.
 
-## Getting started
+## Try it
 
-1. Install the JavaScript dependencies (only required for running tests):
+Open [cmudrc.github.io/gobble-vision](https://cmudrc.github.io/gobble-vision/).
 
-   ```bash
-   npm install
-   ```
+No camera? Choose **Try a sample pose**. The complete art studio works without camera access.
 
-2. Serve the repository with your favorite static file server. A quick option is [`http-server`](https://www.npmjs.com/package/http-server):
+## What changed in version 2
 
-   ```bash
-   npx http-server -c-1 .
-   ```
+- Camera access begins only after an explicit click.
+- Video and hand landmarks stay in the browser. Nothing is uploaded.
+- The hand-pose model now uses the current TensorFlow.js hand-pose-detection API.
+- A generated turkey replaces the raw camera capture, keeping the artwork playful and the background private.
+- A native canvas studio provides drawing, color, brush-size, undo, reset, and PNG download controls.
+- The interface works on phones, tablets, and desktops and includes reduced-motion and keyboard-focus support.
+- The project has no npm runtime or test dependencies.
 
-3. Open `http://localhost:8080` in a modern browser (Chrome, Edge, Safari, or Firefox) and allow camera access when prompted.
+## Local development
 
-## Features
+The app is static. Serve the repository from a local web server because browsers require a secure context or localhost for camera access.
 
-- **Live hand tracking** powered by `@tensorflow-models/handpose`.
-- **Camera safety** – the stream stops as soon as you capture your turkey to avoid leaving your webcam on.
-- **Accessible error feedback** thanks to a dedicated status banner.
-- **Modular geometry helpers** with automated Jest tests for regression coverage.
+```bash
+ruby -run -e httpd . -p 4173
+```
 
-## Testing
+Then open `http://127.0.0.1:4173`.
 
-Geometry utilities that power the drawing pipeline are covered with Jest. Run the suite via:
+Run the dependency-free test suite with Node.js 20 or newer:
 
 ```bash
 npm test
 ```
 
+## How it works
+
+1. `@tensorflow-models/hand-pose-detection` estimates 21 hand landmarks in the live video.
+2. GobbleVision mirrors and scales those landmarks into an artboard coordinate system.
+3. Finger paths become feathers, the palm becomes a body, and the thumb becomes the head.
+4. The generated bird is placed on a native canvas for annotation and export.
+
+The browser downloads model weights from jsDelivr on first use. Camera frames, landmarks, drawings, and downloaded images remain local to the device.
+
+## Project structure
+
+```text
+index.html                      Page structure and accessible controls
+style.css                       Responsive DRC visual system
+handpose/main.js                Model, camera, rendering, and artboard logic
+handpose/geometry.js            Reusable geometry helpers
+handpose/turkey-tool-helper.js  Native dialog controls
+tests/                          Node.js unit tests
+```
+
 ## Credits
 
-- [TensorFlow.js handpose model](https://github.com/tensorflow/tfjs-models/tree/master/handpose)
-- [Polygon Offset](https://github.com/w8r/polygon-offset)
-- [Literally Canvas](http://literallycanvas.com/)
-- [How To Capture Image From Camera Using JavaScript](https://html5.tutorials24x7.com/blog/how-to-capture-image-from-camera)
+- [TensorFlow.js hand pose detection](https://github.com/tensorflow/tfjs-models/tree/master/hand-pose-detection)
+- The hand-turkey makers who have been tracing, decorating, and reinventing this form for generations
+
+GobbleVision is released under the [MIT License](LICENSE).

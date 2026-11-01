@@ -1,14 +1,14 @@
 {
-  "name": "tensorflow-turkeys",
-  "version": "1.0.0",
-  "description": "Hand-pose powered turkey doodles",
+  "name": "gobble-vision",
+  "version": "2.0.0",
+  "description": "Turn a live hand pose into a downloadable digital turkey in the browser.",
+  "private": true,
   "license": "MIT",
   "type": "commonjs",
   "scripts": {
-    "test": "jest --runInBand",
-    "test:watch": "jest --watchAll"
+    "test": "node --test"
   },
-  "devDependencies": {
-    "jest": "^29.7.0"
+  "engines": {
+    "node": ">=20"
   }
 }

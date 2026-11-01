@@ -1,47 +1,37 @@
 (function initTurkeyToolHelper(root) {
+    'use strict';
     const globalObject = root || (typeof window !== 'undefined' ? window : globalThis);
 
-    function getjQuery() {
-        const jqueryInstance = globalObject && globalObject.$;
-        if (typeof jqueryInstance !== 'function') {
-            throw new Error('jQuery is required to control the turkey modal.');
+    function getDialog() {
+        const documentObject = globalObject && globalObject.document ? globalObject.document : globalThis.document;
+        const dialog = documentObject && documentObject.getElementById('turkey-dialog');
+        if (!dialog || typeof dialog.showModal !== 'function') {
+            throw new Error('The GobbleVision camera dialog is unavailable.');
         }
-        return jqueryInstance;
+        return dialog;
     }
 
-    function getModalController() {
-        const jqueryInstance = getjQuery();
-        const modalInstance = jqueryInstance('#turkeyModal');
-        if (!modalInstance || typeof modalInstance.modal !== 'function') {
-            throw new Error('The turkey modal is unavailable.');
-        }
-        return modalInstance;
-    }
-
-    function ensureStartTracking() {
+    function getTracker() {
         const tracker = globalObject && globalObject.startTracking;
-        if (typeof tracker !== 'function') {
-            throw new Error('startTracking is not available.');
-        }
+        if (typeof tracker !== 'function') throw new Error('startTracking is not available.');
         return tracker;
     }
 
     async function restartTurkeyCapture() {
-        const modalController = getModalController();
-        modalController.modal('show');
-        const tracker = ensureStartTracking();
-        await tracker();
+        const dialog = getDialog();
+        if (!dialog.open) dialog.showModal();
+        await getTracker()();
     }
 
-    const helper = {restartTurkeyCapture};
-
-    if (globalObject) {
-        globalObject.TurkeyToolHelper = helper;
+    function closeTurkeyCapture() {
+        const dialog = getDialog();
+        const controls = globalObject && globalObject.TurkeyHandpose;
+        if (controls && typeof controls.stop === 'function') controls.stop();
+        if (dialog.open && typeof dialog.close === 'function') dialog.close();
     }
 
-    if (typeof module === 'object' && module.exports) {
-        module.exports = helper;
-    }
-
+    const helper = {restartTurkeyCapture, closeTurkeyCapture};
+    if (globalObject) globalObject.TurkeyToolHelper = helper;
+    if (typeof module === 'object' && module.exports) module.exports = helper;
     return helper;
 })(typeof window !== 'undefined' ? window : globalThis);
