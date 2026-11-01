@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0b4f54">
-    <meta name="description" content="Turn a hand pose into a one-of-a-kind digital turkey with an in-browser machine learning model.">
+    <meta name="description" content="Turn one or more hand poses into a flock of digital turkeys with an in-browser machine learning model.">
     <title>GobbleVision | AI Hand Turkey Studio</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><text y=%2252%22 font-size=%2252%22>🦃</text></svg>">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -32,13 +32,13 @@
                 <button class="button button--quiet" id="sample-pose" type="button">Try a sample pose</button>
             </div>
             <p class="privacy-note"><span aria-hidden="true">●</span> Your camera stays on your device. No photo or video is uploaded.</p>
-                <p class="studio__status" id="studio-status" role="status" aria-live="polite">Choose a camera or sample pose to begin.</p>
+                <p class="studio__status" id="studio-status" role="status" aria-live="polite">One hand makes a turkey. More hands make a flock.</p>
             </div>
         </div>
         <div class="studio__workspace">
             <div class="artboard-shell">
                 <canvas id="artboard" width="1200" height="900" aria-label="Your digital hand turkey drawing"></canvas>
-                <div class="artboard-empty" id="artboard-empty"><span class="artboard-empty__icon" aria-hidden="true">✋</span><strong>Your turkey will land here</strong><span>Use the camera or try the sample pose.</span></div>
+                <div class="artboard-empty" id="artboard-empty"><span class="artboard-empty__icon" aria-hidden="true">✋</span><strong>Your turkey flock will land here</strong><span>Show one to four hands, or try the sample pose.</span></div>
             </div>
             <aside class="toolbar" aria-label="Drawing tools">
                 <div class="tool-group">
@@ -72,7 +72,7 @@
                     <button class="tool-button" id="new-turkey" type="button"><span aria-hidden="true">◉</span> New pose</button>
                 </div>
                 <div class="toolbar__export">
-                    <button class="button button--share" id="share" type="button" disabled>Share turkey <span aria-hidden="true">↗</span></button>
+                    <button class="button button--share" id="share" type="button" disabled>Share creation <span aria-hidden="true">↗</span></button>
                     <button class="button button--download" id="download" type="button" disabled>Download PNG <span aria-hidden="true">↓</span></button>
                 </div>
             </aside>
@@ -88,12 +88,12 @@
 
 <dialog id="turkey-dialog" aria-labelledby="dialog-title">
     <div class="dialog__header">
-        <div><p class="section-kicker">Camera studio</p><h2 id="dialog-title">Show us your best turkey pose</h2></div>
+        <div><p class="section-kicker">Camera studio</p><h2 id="dialog-title">Show us your best turkey poses</h2></div>
         <button class="dialog__close" id="close-dialog" type="button" aria-label="Close camera">×</button>
     </div>
     <div class="camera-stage">
         <video id="video" playsinline muted aria-hidden="true"></video>
-        <canvas id="preview" width="640" height="500" aria-label="Live camera preview with hand pose overlay"></canvas>
+        <canvas id="preview" width="640" height="500" aria-label="Live camera preview with hand pose overlays"></canvas>
         <div class="camera-loading" id="camera-loading">
             <span class="loader" aria-hidden="true"></span>
             <span class="camera-error-mark" aria-hidden="true">!</span>
@@ -115,7 +115,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@2.0.1/dist/hand-pose-detection.min.js"></script>
 <script src="handpose/geometry.js"></script>
-<script src="handpose/main.js?v=20261101-share"></script>
+<script src="handpose/main.js?v=20261101-flock"></script>
 <script src="handpose/turkey-tool-helper.js"></script>
 </body>
 </html>

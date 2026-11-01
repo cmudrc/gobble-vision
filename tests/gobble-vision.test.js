@@ -28,6 +28,21 @@ test('calculateTransform fits a hand inside the artboard', () => {
     assert.ok(Number.isFinite(transform.offsetY));
 });
 
+test('flock layout supports one to four hands without overlapping cells', () => {
+    assert.equal(app.MAX_HANDS, 4);
+    const two = app.calculateFlockRegions(2, 1200, 900);
+    assert.equal(two.length, 2);
+    assert.ok(two[0].x + two[0].width < two[1].x);
+
+    const three = app.calculateFlockRegions(3, 1200, 900);
+    assert.equal(three.length, 3);
+    assert.equal(three[2].x, (1200 - three[2].width) / 2);
+
+    const four = app.calculateFlockRegions(4, 1200, 900);
+    assert.equal(four.length, 4);
+    assert.ok(four[0].y + four[0].height < four[2].y);
+});
+
 test('thumb guide and turkey neck begin at the outward thumb knuckle', () => {
     assert.deepEqual(app.THUMB_PATH, [2, 3, 4]);
 });
@@ -103,6 +118,30 @@ test('renderStylizedTurkey paints a complete canvas without browser globals', ()
     assert.ok(calls.some(([name]) => name === 'bezierCurveTo'));
     assert.ok(calls.some(([name]) => name === 'quadraticCurveTo'));
     assert.ok(calls.some(([name]) => name === 'fillText'));
+});
+
+test('renderStylizedTurkeys draws one shared artboard and one turkey per detected hand', () => {
+    const calls = [];
+    const context = new Proxy({}, {
+        get(target, property) {
+            if (!(property in target)) target[property] = (...args) => calls.push([property, ...args]);
+            return target[property];
+        },
+        set(target, property, value) {
+            target[property] = value;
+            return true;
+        },
+    });
+    const secondHand = app.SAMPLE_KEYPOINTS.map(([x, y]) => [640 - x, y]);
+    const rendered = app.renderStylizedTurkeys(
+        context,
+        [app.SAMPLE_KEYPOINTS, secondHand],
+        1200,
+        900,
+    );
+    assert.equal(rendered.length, 2);
+    assert.equal(calls.filter(([name]) => name === 'clearRect').length, 1);
+    assert.equal(calls.filter(([name]) => name === 'translate').length, 2);
 });
 
 test('shareTurkeyContent shares the generated PNG when file sharing is supported', async () => {

@@ -2,6 +2,7 @@
 
 const VIDEO_WIDTH = 640;
 const VIDEO_HEIGHT = 500;
+const MAX_HANDS = 4;
 const PAPER = '#fffaf2';
 const INK = '#17383a';
 const BODY = '#8c4a2f';
@@ -38,8 +39,8 @@ let isTracking = false;
 let isStarting = false;
 let startupRequestId = 0;
 let detectionErrorCount = 0;
-let currentKeypoints = null;
-let placedKeypoints = null;
+let currentHands = [];
+let placedHands = null;
 let placedSource = null;
 let artboard = null;
 let artboardContext = null;
@@ -326,6 +327,61 @@ function calculateShapeWidths(baseFingerWidth, options = {}) {
     };
 }
 
+function renderArtboardBackground(context, width, height) {
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = PAPER;
+    context.fillRect(0, 0, width, height);
+
+    context.fillStyle = 'rgba(11,79,84,0.055)';
+    for (let row = 0; row < 7; row += 1) {
+        for (let column = 0; column < 10; column += 1) {
+            fillCircle(context, 45 + column * 128 + (row % 2) * 42, 44 + row * 132, 4, 'rgba(11,79,84,0.055)');
+        }
+    }
+
+    context.fillStyle = '#0b4f54';
+    context.font = `700 ${Math.max(17, width * 0.018)}px system-ui, sans-serif`;
+    context.letterSpacing = '0.08em';
+    context.fillText('GOBBLEVISION', 42, height - 44);
+    context.font = `500 ${Math.max(12, width * 0.012)}px system-ui, sans-serif`;
+    context.fillStyle = '#627374';
+    context.textAlign = 'right';
+    context.fillText('A tiny Thanksgiving experiment from the DRC', width - 42, height - 44);
+    context.textAlign = 'left';
+}
+
+function calculateFlockRegions(count, width, height) {
+    if (count <= 1) return [{x: 0, y: 0, width, height}];
+
+    const sideMargin = width * 0.035;
+    const topMargin = height * 0.025;
+    const bottomMargin = height * 0.1;
+    const gap = width * 0.025;
+    const availableHeight = height - topMargin - bottomMargin;
+
+    if (count === 2) {
+        const regionWidth = (width - sideMargin * 2 - gap) / 2;
+        return [0, 1].map((column) => ({
+            x: sideMargin + column * (regionWidth + gap),
+            y: topMargin,
+            width: regionWidth,
+            height: availableHeight,
+        }));
+    }
+
+    const rowGap = height * 0.025;
+    const regionWidth = (width - sideMargin * 2 - gap) / 2;
+    const regionHeight = (availableHeight - rowGap) / 2;
+    const regions = [
+        {x: sideMargin, y: topMargin, width: regionWidth, height: regionHeight},
+        {x: sideMargin + regionWidth + gap, y: topMargin, width: regionWidth, height: regionHeight},
+        {x: sideMargin, y: topMargin + regionHeight + rowGap, width: regionWidth, height: regionHeight},
+        {x: sideMargin + regionWidth + gap, y: topMargin + regionHeight + rowGap, width: regionWidth, height: regionHeight},
+    ];
+    if (count === 3) regions[2].x = (width - regionWidth) / 2;
+    return regions.slice(0, Math.min(count, MAX_HANDS));
+}
+
 function renderStylizedTurkey(context, keypoints, width, height, shapeOptions = {}) {
     const transform = calculateTransform(keypoints, width, height);
     const points = keypoints.map((point) => mapPoint(point, transform));
@@ -338,16 +394,7 @@ function renderStylizedTurkey(context, keypoints, width, height, shapeOptions = 
     const palm = calculatePalmGeometry(points, fingerWidth);
 
     context.save();
-    context.clearRect(0, 0, width, height);
-    context.fillStyle = PAPER;
-    context.fillRect(0, 0, width, height);
-
-    context.fillStyle = 'rgba(11,79,84,0.055)';
-    for (let row = 0; row < 7; row += 1) {
-        for (let column = 0; column < 10; column += 1) {
-            fillCircle(context, 45 + column * 128 + (row % 2) * 42, 44 + row * 132, 4, 'rgba(11,79,84,0.055)');
-        }
-    }
+    if (shapeOptions.background !== false) renderArtboardBackground(context, width, height);
 
     TAIL_PATHS.forEach((path, index) => {
         strokeRoundedPath(context, points, path, FEATHER_COLORS[index], shapeWidths.featherWidth);
@@ -385,35 +432,54 @@ function renderStylizedTurkey(context, keypoints, width, height, shapeOptions = 
     const wattle = addVector(addVector(head, thumbDirection, headRadius * 0.34), faceNormal, -headRadius * 0.62);
     fillCircle(context, wattle[0], wattle[1], headRadius * 0.25, '#c63f32');
 
-    context.fillStyle = '#0b4f54';
-    context.font = `700 ${Math.max(17, width * 0.018)}px system-ui, sans-serif`;
-    context.letterSpacing = '0.08em';
-    context.fillText('GOBBLEVISION', 42, height - 44);
-    context.font = `500 ${Math.max(12, width * 0.012)}px system-ui, sans-serif`;
-    context.fillStyle = '#627374';
-    context.textAlign = 'right';
-    context.fillText('A tiny Thanksgiving experiment from the DRC', width - 42, height - 44);
     context.restore();
     return points;
 }
 
-function drawPreview(context, video, points, width, height) {
+function renderStylizedTurkeys(context, hands, width, height, shapeOptions = {}) {
+    const validHands = Array.isArray(hands) ? hands.slice(0, MAX_HANDS) : [];
+    if (!validHands.length) return [];
+    if (validHands.length === 1) {
+        return [renderStylizedTurkey(context, validHands[0], width, height, shapeOptions)];
+    }
+
+    context.save();
+    renderArtboardBackground(context, width, height);
+    const regions = calculateFlockRegions(validHands.length, width, height);
+    const renderedPoints = validHands.map((keypoints, index) => {
+        const region = regions[index];
+        context.save();
+        context.translate(region.x, region.y);
+        const points = renderStylizedTurkey(context, keypoints, region.width, region.height, {
+            ...shapeOptions,
+            background: false,
+        });
+        context.restore();
+        return points.map((point) => [point[0] + region.x, point[1] + region.y]);
+    });
+    context.restore();
+    return renderedPoints;
+}
+
+function drawPreview(context, video, hands, width, height) {
     context.save();
     context.clearRect(0, 0, width, height);
     context.translate(width, 0);
     context.scale(-1, 1);
     context.drawImage(video, 0, 0, width, height);
     context.restore();
-    if (!points) return;
-    FINGER_PATHS.forEach((path, index) => {
-        tracePath(context, points, path);
-        context.strokeStyle = FEATHER_COLORS[index];
-        context.lineWidth = 9;
-        context.lineCap = 'round';
-        context.lineJoin = 'round';
-        context.stroke();
+    if (!hands || !hands.length) return;
+    hands.forEach((points) => {
+        FINGER_PATHS.forEach((path, index) => {
+            tracePath(context, points, path);
+            context.strokeStyle = FEATHER_COLORS[index];
+            context.lineWidth = 9;
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+            context.stroke();
+        });
+        points.forEach((point) => fillCircle(context, point[0], point[1], 4, '#fffaf2'));
     });
-    points.forEach((point) => fillCircle(context, point[0], point[1], 4, '#fffaf2'));
 }
 
 async function ensureModelLoaded() {
@@ -429,7 +495,7 @@ async function ensureModelLoaded() {
                     runtime: 'mediapipe',
                     solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240',
                     modelType: 'full',
-                    maxHands: 1,
+                    maxHands: MAX_HANDS,
                 },
             );
             return detector;
@@ -507,12 +573,15 @@ function hideCameraOverlay() {
     if (loading) loading.classList.add('is-hidden');
 }
 
-function setCameraMessage(message, hasHand) {
+function setCameraMessage(message, handCount = 0) {
     if (typeof document === 'undefined') return;
     const status = document.getElementById('camera-status');
     const capture = document.getElementById('capture');
     if (status) status.textContent = message;
-    if (capture) capture.disabled = !hasHand;
+    if (capture) {
+        capture.disabled = handCount < 1;
+        capture.textContent = handCount > 1 ? `Capture ${handCount} turkeys` : 'Capture this pose';
+    }
 }
 
 function cameraErrorMessage(error) {
@@ -537,18 +606,25 @@ async function frameLoop() {
         const predictions = await detector.estimateHands(activeVideo, {flipHorizontal: false});
         if (!isTracking || !activeVideo) return;
         if (predictions.length) {
-            currentKeypoints = pointsFromPrediction(predictions[0].keypoints, canvas.width);
-            setCameraMessage('Hand found. Hold still, or make it weird.', true);
+            currentHands = predictions
+                .slice(0, MAX_HANDS)
+                .map((prediction) => pointsFromPrediction(prediction.keypoints, canvas.width))
+                .sort((first, second) => first[0][0] - second[0][0]);
+            const handCount = currentHands.length;
+            const message = handCount === 1
+                ? 'Hand found. Hold still, or make it weird.'
+                : `${handCount} hands found. Hold still for the flock.`;
+            setCameraMessage(message, handCount);
         } else {
-            currentKeypoints = null;
-            setCameraMessage('Open your hand and keep it inside the frame.', false);
+            currentHands = [];
+            setCameraMessage('Open one or more hands and keep them inside the frame.', 0);
         }
-        drawPreview(context, activeVideo, currentKeypoints, canvas.width, canvas.height);
+        drawPreview(context, activeVideo, currentHands, canvas.width, canvas.height);
         detectionErrorCount = 0;
     } catch (error) {
         if (!isTracking) return;
         detectionErrorCount += 1;
-        setCameraMessage('The model lost the thread. Try repositioning your hand.', false);
+        setCameraMessage('The model lost the thread. Try repositioning your hands.', 0);
         console.warn('Hand detection failed', error);
         if (detectionErrorCount >= 5) {
             setCameraOverlay({
@@ -557,7 +633,7 @@ async function frameLoop() {
                 state: 'error',
                 hasPreview: true,
             });
-            setCameraMessage('Hand tracking stopped after repeated errors.', false);
+            setCameraMessage('Hand tracking stopped after repeated errors.', 0);
             stopTracking();
             return;
         }
@@ -574,20 +650,20 @@ async function startTracking() {
         title: 'Waiting for your camera…',
         detail: 'Your browser may ask for permission.',
     });
-    setCameraMessage('Allow camera access to begin.', false);
+    setCameraMessage('Allow camera access to begin.', 0);
     try {
         const video = await setupCamera(requestId);
         assertCurrentStartup(requestId);
         const canvas = document.getElementById('preview');
         canvas.width = video.videoWidth || VIDEO_WIDTH;
         canvas.height = video.videoHeight || VIDEO_HEIGHT;
-        drawPreview(canvas.getContext('2d'), video, null, canvas.width, canvas.height);
+        drawPreview(canvas.getContext('2d'), video, [], canvas.width, canvas.height);
         setCameraOverlay({
             title: 'Camera connected. Finding the flock…',
             detail: 'Loading hand tracking. The first visit can take a few seconds.',
             hasPreview: true,
         });
-        setCameraMessage('Camera ready. Warming up hand tracking…', false);
+        setCameraMessage('Camera ready. Warming up hand tracking…', 0);
         await ensureModelLoaded();
         assertCurrentStartup(requestId);
         hideCameraOverlay();
@@ -605,7 +681,7 @@ async function startTracking() {
             state: 'error',
             hasPreview: Boolean(activeVideo),
         });
-        setCameraMessage(message, false);
+        setCameraMessage(message, 0);
         stopTracking();
         return false;
     } finally {
@@ -633,7 +709,7 @@ function stopTracking() {
         activeVideo.srcObject = null;
     }
     activeVideo = null;
-    currentKeypoints = null;
+    currentHands = [];
     stopCameraStream();
 }
 
@@ -658,22 +734,28 @@ function pushHistory() {
     updateStudioControls();
 }
 
-function placeTurkey(keypoints, source) {
+function placeTurkeys(hands, source) {
     if (!artboardContext) return;
-    placedKeypoints = keypoints.map((point) => [...point]);
+    placedHands = hands.slice(0, MAX_HANDS).map((keypoints) => keypoints.map((point) => [...point]));
     placedSource = source;
-    renderStylizedTurkey(artboardContext, placedKeypoints, artboard.width, artboard.height, {
+    renderStylizedTurkeys(artboardContext, placedHands, artboard.width, artboard.height, {
         palmRadius: palmRadiusScale,
         featherRadius: featherRadiusScale,
     });
     artHistory = [];
     pushHistory();
-    document.getElementById('studio-status').textContent = `${source} turkey captured. Add a note, doodle, or finishing touch.`;
+    const count = placedHands.length;
+    const captureLabel = count === 1 ? `${source} turkey` : `${count} ${source.toLowerCase()} turkeys`;
+    document.getElementById('studio-status').textContent = `${captureLabel} captured. Add a note, doodle, or finishing touch.`;
+}
+
+function placeTurkey(keypoints, source) {
+    placeTurkeys([keypoints], source);
 }
 
 function reshapePlacedTurkey() {
-    if (!artboardContext || !placedKeypoints) return false;
-    renderStylizedTurkey(artboardContext, placedKeypoints, artboard.width, artboard.height, {
+    if (!artboardContext || !placedHands) return false;
+    renderStylizedTurkeys(artboardContext, placedHands, artboard.width, artboard.height, {
         palmRadius: palmRadiusScale,
         featherRadius: featherRadiusScale,
     });
@@ -688,8 +770,8 @@ function placeSampleTurkey() {
 }
 
 function captureTurkey() {
-    if (!currentKeypoints) return false;
-    placeTurkey(currentKeypoints, 'Camera');
+    if (!currentHands.length) return false;
+    placeTurkeys(currentHands, 'Camera');
     stopTracking();
     return true;
 }
@@ -883,7 +965,7 @@ function initializeApp() {
             reshapePlacedTurkey();
         });
         input.addEventListener('change', () => {
-            if (placedKeypoints) showToast('Turkey shape updated. Fresh canvas, ready to decorate.');
+            if (placedHands) showToast('Turkey shape updated. Fresh canvas, ready to decorate.');
         });
     };
     bindShapeSlider('palm-radius', 'palm-radius-output', (value) => { palmRadiusScale = value; });
@@ -905,7 +987,7 @@ function initializeApp() {
     document.getElementById('share').addEventListener('click', shareTurkey);
     document.getElementById('download').addEventListener('click', () => {
         const link = document.createElement('a');
-        link.download = 'gobblevision-turkey.png';
+        link.download = placedHands && placedHands.length > 1 ? 'gobblevision-flock.png' : 'gobblevision-turkey.png';
         link.href = artboard.toDataURL('image/png');
         link.click();
         showToast('Turkey downloaded. Happy Thanksgiving!');
@@ -919,7 +1001,7 @@ function initializeApp() {
 }
 
 if (typeof window !== 'undefined') {
-    window.GobbleVision = {startTracking, stopTracking, captureTurkey, renderStylizedTurkey};
+    window.GobbleVision = {startTracking, stopTracking, captureTurkey, renderStylizedTurkey, renderStylizedTurkeys};
     window.TurkeyHandpose = {stop: stopTurkeyExperience};
     window.startTracking = startTracking;
     window.stopTracking = stopTracking;
@@ -941,15 +1023,18 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SAMPLE_KEYPOINTS,
         THUMB_PATH,
+        MAX_HANDS,
         calculateShapeWidths,
         calculatePalmGeometry,
         fillRoundedPalm,
         calculateLegGeometry,
+        calculateFlockRegions,
         drawTurkeyLegs,
         pointsFromPrediction,
         cameraErrorMessage,
         calculateTransform,
         renderStylizedTurkey,
+        renderStylizedTurkeys,
         shareTurkeyContent,
         stopCameraStream,
         stopTurkeyExperience,

@@ -2,7 +2,7 @@
 
 **Hold up a hand. Make a turkey.**
 
-GobbleVision is a browser-based Thanksgiving experiment from the [Design Research Collective](https://cmudrc.github.io/) at Carnegie Mellon University. It uses MediaPipe Hands through the TensorFlow.js hand-pose-detection API to turn 21 landmarks into a stylized digital turkey. You can decorate the result and download it as a PNG.
+GobbleVision is a browser-based Thanksgiving experiment from the [Design Research Collective](https://cmudrc.github.io/) at Carnegie Mellon University. It uses MediaPipe Hands through the TensorFlow.js hand-pose-detection API to turn each detected set of 21 landmarks into a stylized digital turkey. Show one hand for a turkey or up to four hands for a flock, then decorate, share, or download the result.
 
 ## Try it
 
@@ -15,6 +15,7 @@ No camera? Choose **Try a sample pose**. The complete art studio works without c
 - Camera access begins only after an explicit click.
 - Video and hand landmarks stay in the browser. Nothing is uploaded.
 - The hand-pose model uses the current hand-pose-detection API with MediaPipe's browser runtime.
+- Multi-hand recognition turns up to four simultaneous hand poses into a balanced turkey flock.
 - A generated turkey replaces the raw camera capture, keeping the artwork playful and the background private.
 - A native canvas studio provides drawing, color, brush-size, undo, reset, and PNG download controls.
 - The interface works on phones, tablets, and desktops and includes reduced-motion and keyboard-focus support.
@@ -38,8 +39,8 @@ npm test
 
 ## How it works
 
-1. `@tensorflow-models/hand-pose-detection` and MediaPipe Hands estimate 21 hand landmarks in the live video.
-2. GobbleVision mirrors and scales those landmarks into an artboard coordinate system.
+1. `@tensorflow-models/hand-pose-detection` and MediaPipe Hands estimate 21 landmarks for each visible hand in the live video.
+2. GobbleVision mirrors and scales those landmarks into one-, two-, three-, or four-turkey artboard layouts.
 3. Finger paths become feathers, the palm becomes a body, and the thumb becomes the head.
 4. The generated bird is placed on a native canvas for annotation and export.
 
