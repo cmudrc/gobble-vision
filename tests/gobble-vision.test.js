@@ -28,6 +28,10 @@ test('calculateTransform fits a hand inside the artboard', () => {
     assert.ok(Number.isFinite(transform.offsetY));
 });
 
+test('thumb guide and turkey neck begin at the outward thumb knuckle', () => {
+    assert.deepEqual(app.THUMB_PATH, [2, 3, 4]);
+});
+
 test('camera errors are translated into useful next steps', () => {
     const error = new Error('Requested device not found');
     error.name = 'NotFoundError';

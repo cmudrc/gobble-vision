@@ -6,8 +6,9 @@ const PAPER = '#fffaf2';
 const INK = '#17383a';
 const BODY = '#8c4a2f';
 const FEATHER_COLORS = ['#7c3f58', '#e7592d', '#d8a126', '#d86e35', '#15646a'];
+const THUMB_PATH = [2, 3, 4];
 const FINGER_PATHS = [
-    [0, 1, 2, 3, 4],
+    THUMB_PATH,
     [0, 5, 6, 7, 8],
     [0, 9, 10, 11, 12],
     [0, 13, 14, 15, 16],
@@ -258,8 +259,7 @@ function renderStylizedTurkey(context, keypoints, width, height) {
         strokeRoundedPath(context, points, path, FEATHER_COLORS[index], fingerWidth);
     });
 
-    const thumbBase = interpolatePoint(palm.indexKnuckle, palm.wrist, 0.52);
-    strokeRoundedPoints(context, [thumbBase, points[1], points[2], points[3], points[4]], BODY, fingerWidth * 0.84);
+    strokeRoundedPath(context, points, THUMB_PATH, BODY, fingerWidth * 0.84);
 
     tracePalm(context, palm);
     context.fillStyle = BODY;
@@ -760,6 +760,7 @@ function __getAnimationLoopStateForTesting() { return {rafID, isAnimationLoopAct
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SAMPLE_KEYPOINTS,
+        THUMB_PATH,
         pointsFromPrediction,
         cameraErrorMessage,
         calculateTransform,
