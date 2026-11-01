@@ -15,7 +15,7 @@ No camera? Choose **Try a sample pose**. The complete art studio works without c
 - Camera access begins only after an explicit click.
 - Video and hand landmarks stay in the browser. Nothing is uploaded.
 - The hand-pose model uses the current hand-pose-detection API with MediaPipe's browser runtime.
-- Multi-hand recognition turns up to four simultaneous hand poses into a balanced turkey flock.
+- Multi-hand recognition turns up to four simultaneous hand poses into a turkey flock while preserving each hand's position in the camera frame.
 - A generated turkey replaces the raw camera capture, keeping the artwork playful and the background private.
 - An optional three-second camera timer lets everyone move away from the controls and put all available hands in frame.
 - A native canvas studio provides drawing, color, brush-size, undo, reset, and PNG download controls.

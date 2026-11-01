@@ -28,19 +28,27 @@ test('calculateTransform fits a hand inside the artboard', () => {
     assert.ok(Number.isFinite(transform.offsetY));
 });
 
-test('flock layout supports one to four hands without overlapping cells', () => {
+test('photo frame transform preserves composition inside the artboard', () => {
     assert.equal(app.MAX_HANDS, 4);
-    const two = app.calculateFlockRegions(2, 1200, 900);
-    assert.equal(two.length, 2);
-    assert.ok(two[0].x + two[0].width < two[1].x);
-
-    const three = app.calculateFlockRegions(3, 1200, 900);
-    assert.equal(three.length, 3);
-    assert.equal(three[2].x, (1200 - three[2].width) / 2);
-
-    const four = app.calculateFlockRegions(4, 1200, 900);
-    assert.equal(four.length, 4);
-    assert.ok(four[0].y + four[0].height < four[2].y);
+    const transform = app.calculateFrameTransform(640, 500, 1200, 900);
+    const first = [120, 140];
+    const second = [520, 360];
+    const mappedFirst = [
+        first[0] * transform.scale + transform.offsetX,
+        first[1] * transform.scale + transform.offsetY,
+    ];
+    const mappedSecond = [
+        second[0] * transform.scale + transform.offsetX,
+        second[1] * transform.scale + transform.offsetY,
+    ];
+    assert.ok(Math.abs(
+        (mappedSecond[0] - mappedFirst[0]) - (second[0] - first[0]) * transform.scale,
+    ) < 1e-9);
+    assert.ok(Math.abs(
+        (mappedSecond[1] - mappedFirst[1]) - (second[1] - first[1]) * transform.scale,
+    ) < 1e-9);
+    assert.ok(mappedFirst[0] > 0 && mappedFirst[1] > 0);
+    assert.ok(mappedSecond[0] < 1200 && mappedSecond[1] < 900);
 });
 
 test('optional capture timer counts down once and completes', () => {
@@ -169,7 +177,7 @@ test('renderStylizedTurkey paints a complete canvas without browser globals', ()
     assert.ok(calls.some(([name]) => name === 'fillText'));
 });
 
-test('renderStylizedTurkeys draws one shared artboard and one turkey per detected hand', () => {
+test('renderStylizedTurkeys keeps each turkey at its hand location', () => {
     const calls = [];
     const context = new Proxy({}, {
         get(target, property) {
@@ -187,10 +195,20 @@ test('renderStylizedTurkeys draws one shared artboard and one turkey per detecte
         [app.SAMPLE_KEYPOINTS, secondHand],
         1200,
         900,
+        {sourceWidth: 640, sourceHeight: 500},
     );
+    const transform = app.calculateFrameTransform(640, 500, 1200, 900);
     assert.equal(rendered.length, 2);
     assert.equal(calls.filter(([name]) => name === 'clearRect').length, 1);
-    assert.equal(calls.filter(([name]) => name === 'translate').length, 2);
+    assert.equal(calls.filter(([name]) => name === 'translate').length, 0);
+    assert.deepEqual(rendered[0][0], [
+        app.SAMPLE_KEYPOINTS[0][0] * transform.scale + transform.offsetX,
+        app.SAMPLE_KEYPOINTS[0][1] * transform.scale + transform.offsetY,
+    ]);
+    assert.deepEqual(rendered[1][0], [
+        secondHand[0][0] * transform.scale + transform.offsetX,
+        secondHand[0][1] * transform.scale + transform.offsetY,
+    ]);
 });
 
 test('shareTurkeyContent shares the generated PNG when file sharing is supported', async () => {

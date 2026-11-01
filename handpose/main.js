@@ -43,6 +43,7 @@ let detectionErrorCount = 0;
 let currentHands = [];
 let placedHands = null;
 let placedSource = null;
+let placedFrame = {width: VIDEO_WIDTH, height: VIDEO_HEIGHT};
 let artboard = null;
 let artboardContext = null;
 let artHistory = [];
@@ -396,40 +397,24 @@ function renderArtboardBackground(context, width, height) {
     context.textAlign = 'left';
 }
 
-function calculateFlockRegions(count, width, height) {
-    if (count <= 1) return [{x: 0, y: 0, width, height}];
-
-    const sideMargin = width * 0.035;
-    const topMargin = height * 0.025;
-    const bottomMargin = height * 0.1;
-    const gap = width * 0.025;
+function calculateFrameTransform(sourceWidth, sourceHeight, width, height) {
+    const safeSourceWidth = Math.max(1, Number(sourceWidth) || VIDEO_WIDTH);
+    const safeSourceHeight = Math.max(1, Number(sourceHeight) || VIDEO_HEIGHT);
+    const sideMargin = width * 0.06;
+    const topMargin = height * 0.04;
+    const bottomMargin = height * 0.12;
+    const availableWidth = width - sideMargin * 2;
     const availableHeight = height - topMargin - bottomMargin;
-
-    if (count === 2) {
-        const regionWidth = (width - sideMargin * 2 - gap) / 2;
-        return [0, 1].map((column) => ({
-            x: sideMargin + column * (regionWidth + gap),
-            y: topMargin,
-            width: regionWidth,
-            height: availableHeight,
-        }));
-    }
-
-    const rowGap = height * 0.025;
-    const regionWidth = (width - sideMargin * 2 - gap) / 2;
-    const regionHeight = (availableHeight - rowGap) / 2;
-    const regions = [
-        {x: sideMargin, y: topMargin, width: regionWidth, height: regionHeight},
-        {x: sideMargin + regionWidth + gap, y: topMargin, width: regionWidth, height: regionHeight},
-        {x: sideMargin, y: topMargin + regionHeight + rowGap, width: regionWidth, height: regionHeight},
-        {x: sideMargin + regionWidth + gap, y: topMargin + regionHeight + rowGap, width: regionWidth, height: regionHeight},
-    ];
-    if (count === 3) regions[2].x = (width - regionWidth) / 2;
-    return regions.slice(0, Math.min(count, MAX_HANDS));
+    const scale = Math.min(availableWidth / safeSourceWidth, availableHeight / safeSourceHeight);
+    return {
+        scale,
+        offsetX: (width - safeSourceWidth * scale) / 2,
+        offsetY: topMargin + (availableHeight - safeSourceHeight * scale) / 2,
+    };
 }
 
 function renderStylizedTurkey(context, keypoints, width, height, shapeOptions = {}) {
-    const transform = calculateTransform(keypoints, width, height);
+    const transform = shapeOptions.transform || calculateTransform(keypoints, width, height);
     const points = keypoints.map((point) => mapPoint(point, transform));
     const measuredPalmWidth = distanceBetween(points[5], points[17]);
     const fingerWidth = Math.min(
@@ -485,24 +470,22 @@ function renderStylizedTurkey(context, keypoints, width, height, shapeOptions = 
 function renderStylizedTurkeys(context, hands, width, height, shapeOptions = {}) {
     const validHands = Array.isArray(hands) ? hands.slice(0, MAX_HANDS) : [];
     if (!validHands.length) return [];
-    if (validHands.length === 1) {
-        return [renderStylizedTurkey(context, validHands[0], width, height, shapeOptions)];
-    }
 
     context.save();
     renderArtboardBackground(context, width, height);
-    const regions = calculateFlockRegions(validHands.length, width, height);
-    const renderedPoints = validHands.map((keypoints, index) => {
-        const region = regions[index];
-        context.save();
-        context.translate(region.x, region.y);
-        const points = renderStylizedTurkey(context, keypoints, region.width, region.height, {
+    const transform = calculateFrameTransform(
+        shapeOptions.sourceWidth,
+        shapeOptions.sourceHeight,
+        width,
+        height,
+    );
+    const renderedPoints = validHands.map((keypoints) => (
+        renderStylizedTurkey(context, keypoints, width, height, {
             ...shapeOptions,
             background: false,
-        });
-        context.restore();
-        return points.map((point) => [point[0] + region.x, point[1] + region.y]);
-    });
+            transform,
+        })
+    ));
     context.restore();
     return renderedPoints;
 }
@@ -822,13 +805,19 @@ function pushHistory() {
     updateStudioControls();
 }
 
-function placeTurkeys(hands, source) {
+function placeTurkeys(hands, source, frame = {}) {
     if (!artboardContext) return;
     placedHands = hands.slice(0, MAX_HANDS).map((keypoints) => keypoints.map((point) => [...point]));
     placedSource = source;
+    placedFrame = {
+        width: Math.max(1, Number(frame.width) || VIDEO_WIDTH),
+        height: Math.max(1, Number(frame.height) || VIDEO_HEIGHT),
+    };
     renderStylizedTurkeys(artboardContext, placedHands, artboard.width, artboard.height, {
         palmRadius: palmRadiusScale,
         featherRadius: featherRadiusScale,
+        sourceWidth: placedFrame.width,
+        sourceHeight: placedFrame.height,
     });
     artHistory = [];
     pushHistory();
@@ -846,6 +835,8 @@ function reshapePlacedTurkey() {
     renderStylizedTurkeys(artboardContext, placedHands, artboard.width, artboard.height, {
         palmRadius: palmRadiusScale,
         featherRadius: featherRadiusScale,
+        sourceWidth: placedFrame.width,
+        sourceHeight: placedFrame.height,
     });
     artHistory = [];
     pushHistory();
@@ -859,7 +850,11 @@ function placeSampleTurkey() {
 
 function captureTurkey() {
     if (!currentHands.length) return false;
-    placeTurkeys(currentHands, 'Camera');
+    const preview = typeof document === 'undefined' ? null : document.getElementById('preview');
+    placeTurkeys(currentHands, 'Camera', {
+        width: preview && preview.width,
+        height: preview && preview.height,
+    });
     stopTracking();
     return true;
 }
@@ -1155,7 +1150,7 @@ if (typeof module !== 'undefined' && module.exports) {
         calculatePalmGeometry,
         fillRoundedPalm,
         calculateLegGeometry,
-        calculateFlockRegions,
+        calculateFrameTransform,
         drawTurkeyLegs,
         pointsFromPrediction,
         cameraErrorMessage,
