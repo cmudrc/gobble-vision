@@ -668,7 +668,6 @@ function placeTurkey(keypoints, source) {
     artHistory = [];
     pushHistory();
     document.getElementById('studio-status').textContent = `${source} turkey captured. Add a note, doodle, or finishing touch.`;
-    document.getElementById('studio').scrollIntoView({behavior: 'smooth', block: 'center'});
 }
 
 function reshapePlacedTurkey() {

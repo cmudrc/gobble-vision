@@ -8,7 +8,7 @@
     <title>GobbleVision | AI Hand Turkey Studio</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><text y=%2252%22 font-size=%2252%22>🦃</text></svg>">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261101-studio-first">
 </head>
 <body>
 <header class="site-header">
@@ -20,27 +20,20 @@
 </header>
 
 <main>
-    <section class="hero" aria-labelledby="hero-title">
-        <div class="hero__copy">
+    <section class="studio" id="studio" aria-labelledby="studio-title">
+        <div class="studio__heading">
+            <div class="studio__intro">
             <p class="eyebrow">A tiny Thanksgiving experiment from the DRC</p>
-            <h1 id="hero-title">Hold up a hand.<br><em>Make a turkey.</em></h1>
-            <p class="hero__lede">GobbleVision uses an in-browser hand-pose model to turn your pose into a one-of-a-kind digital turkey. Decorate it, download it, and send it to somebody you are thankful for.</p>
+                <h1 id="studio-title">Hold up a hand. <em>Make a turkey.</em></h1>
+            </div>
+            <div class="studio__launch">
             <div class="hero__actions">
                 <button class="button button--primary" id="start-camera" type="button"><span aria-hidden="true">◉</span> Start with my camera</button>
                 <button class="button button--quiet" id="sample-pose" type="button">Try a sample pose</button>
             </div>
             <p class="privacy-note"><span aria-hidden="true">●</span> Your camera stays on your device. No photo or video is uploaded.</p>
-        </div>
-        <div class="hero__bird" aria-hidden="true">
-            <span class="feather feather--1"></span><span class="feather feather--2"></span><span class="feather feather--3"></span><span class="feather feather--4"></span><span class="feather feather--5"></span>
-            <span class="bird-body"><span class="bird-eye"></span><span class="bird-beak"></span></span>
-        </div>
-    </section>
-
-    <section class="studio" id="studio" aria-labelledby="studio-title">
-        <div class="studio__heading">
-            <div><p class="section-kicker">The studio</p><h2 id="studio-title">Make it yours</h2></div>
-            <p class="studio__status" id="studio-status" role="status" aria-live="polite">Choose a camera or sample pose to begin.</p>
+                <p class="studio__status" id="studio-status" role="status" aria-live="polite">Choose a camera or sample pose to begin.</p>
+            </div>
         </div>
         <div class="studio__workspace">
             <div class="artboard-shell">
@@ -128,7 +121,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@2.0.1/dist/hand-pose-detection.min.js"></script>
 <script src="handpose/geometry.js"></script>
-<script src="handpose/main.js?v=20261101-shape-sliders"></script>
+<script src="handpose/main.js?v=20261101-studio-first"></script>
 <script src="handpose/turkey-tool-helper.js"></script>
 </body>
 </html>
