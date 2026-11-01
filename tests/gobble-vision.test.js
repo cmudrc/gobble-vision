@@ -9,6 +9,18 @@ test('pointsFromPrediction mirrors model coordinates for the selfie view', () =>
     assert.deepEqual(points[20], [60, 60]);
 });
 
+test('pointsFromPrediction accepts typed-array landmarks from browser model runtimes', () => {
+    const modelPoints = Array.from({length: 21}, (_, index) => new Float32Array([index * 2, index * 3, 0]));
+    const points = app.pointsFromPrediction(modelPoints, 100);
+    assert.deepEqual(points[0], [100, 0]);
+    assert.deepEqual(points[20], [60, 60]);
+});
+
+test('pointsFromPrediction rejects malformed landmarks instead of drawing a blank turkey', () => {
+    const modelPoints = Array.from({length: 21}, () => ({}));
+    assert.throws(() => app.pointsFromPrediction(modelPoints, 100), /invalid landmark/);
+});
+
 test('calculateTransform fits a hand inside the artboard', () => {
     const transform = app.calculateTransform(app.SAMPLE_KEYPOINTS, 1200, 900);
     assert.ok(transform.scale > 0);

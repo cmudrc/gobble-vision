@@ -28,6 +28,9 @@ let detector = null;
 let modelLoadPromise = null;
 let rafID = null;
 let isTracking = false;
+let isStarting = false;
+let startupRequestId = 0;
+let detectionErrorCount = 0;
 let currentKeypoints = null;
 let artboard = null;
 let artboardContext = null;
@@ -42,8 +45,11 @@ function pointsFromPrediction(keypoints, videoWidth) {
         throw new Error('Expected 21 hand landmarks.');
     }
     return keypoints.map((point) => {
-        const x = Array.isArray(point) ? point[0] : point.x;
-        const y = Array.isArray(point) ? point[1] : point.y;
+        const x = Number(point && point.x !== undefined ? point.x : point && point[0]);
+        const y = Number(point && point.y !== undefined ? point.y : point && point[1]);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+            throw new Error('The hand model returned an invalid landmark.');
+        }
         return [videoWidth - x, y];
     });
 }
@@ -201,35 +207,91 @@ async function ensureModelLoaded() {
     if (detector) return detector;
     if (!modelLoadPromise) {
         modelLoadPromise = (async () => {
-            if (typeof tf === 'undefined' || typeof handPoseDetection === 'undefined') {
+            if (typeof tf === 'undefined' || typeof Hands === 'undefined' || typeof handPoseDetection === 'undefined') {
                 throw new Error('The hand-pose model could not load. Check your connection and try again.');
             }
-            await tf.setBackend('webgl');
-            await tf.ready();
             detector = await handPoseDetection.createDetector(
                 handPoseDetection.SupportedModels.MediaPipeHands,
-                {runtime: 'tfjs', modelType: 'lite', maxHands: 1},
+                {
+                    runtime: 'mediapipe',
+                    solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240',
+                    modelType: 'full',
+                    maxHands: 1,
+                },
             );
             return detector;
         })();
     }
-    return modelLoadPromise;
+    try {
+        return await modelLoadPromise;
+    } catch (error) {
+        modelLoadPromise = null;
+        detector = null;
+        throw error;
+    }
 }
 
-async function setupCamera() {
+function makeStartupCancelledError() {
+    const error = new Error('Camera startup was cancelled.');
+    error.name = 'AbortError';
+    return error;
+}
+
+function assertCurrentStartup(requestId) {
+    if (requestId !== startupRequestId) throw makeStartupCancelledError();
+}
+
+function stopMediaStream(mediaStream) {
+    if (mediaStream && typeof mediaStream.getTracks === 'function') {
+        mediaStream.getTracks().forEach((track) => track.stop());
+    }
+}
+
+async function setupCamera(requestId) {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('This browser cannot access a camera. Try the sample pose instead.');
     }
     const video = document.getElementById('video');
-    stream = await navigator.mediaDevices.getUserMedia({
+    const cameraStream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {facingMode: 'user', width: {ideal: VIDEO_WIDTH}, height: {ideal: VIDEO_HEIGHT}},
     });
-    video.srcObject = stream;
-    await new Promise((resolve) => { video.onloadedmetadata = resolve; });
+    if (requestId !== startupRequestId) {
+        stopMediaStream(cameraStream);
+        throw makeStartupCancelledError();
+    }
+    stream = cameraStream;
+    video.srcObject = cameraStream;
+    if (video.readyState < 1) {
+        await new Promise((resolve, reject) => {
+            video.onloadedmetadata = resolve;
+            video.onerror = () => reject(new Error('The camera feed could not be read.'));
+        });
+    }
+    assertCurrentStartup(requestId);
     await video.play();
+    assertCurrentStartup(requestId);
     activeVideo = video;
     return video;
+}
+
+function setCameraOverlay({title, detail, state = 'loading', hasPreview = false}) {
+    if (typeof document === 'undefined') return;
+    const loading = document.getElementById('camera-loading');
+    const titleElement = document.getElementById('camera-loading-title');
+    const detailElement = document.getElementById('camera-loading-detail');
+    if (!loading) return;
+    loading.classList.remove('is-hidden', 'is-error', 'has-preview');
+    loading.classList.toggle('is-error', state === 'error');
+    loading.classList.toggle('has-preview', hasPreview);
+    if (titleElement) titleElement.textContent = title;
+    if (detailElement) detailElement.textContent = detail;
+}
+
+function hideCameraOverlay() {
+    if (typeof document === 'undefined') return;
+    const loading = document.getElementById('camera-loading');
+    if (loading) loading.classList.add('is-hidden');
 }
 
 function setCameraMessage(message, hasHand) {
@@ -260,6 +322,7 @@ async function frameLoop() {
     const context = canvas.getContext('2d');
     try {
         const predictions = await detector.estimateHands(activeVideo, {flipHorizontal: false});
+        if (!isTracking || !activeVideo) return;
         if (predictions.length) {
             currentKeypoints = pointsFromPrediction(predictions[0].keypoints, canvas.width);
             setCameraMessage('Hand found. Hold still, or make it weird.', true);
@@ -268,44 +331,88 @@ async function frameLoop() {
             setCameraMessage('Open your hand and keep it inside the frame.', false);
         }
         drawPreview(context, activeVideo, currentKeypoints, canvas.width, canvas.height);
+        detectionErrorCount = 0;
     } catch (error) {
+        if (!isTracking) return;
+        detectionErrorCount += 1;
         setCameraMessage('The model lost the thread. Try repositioning your hand.', false);
-        console.error('Hand detection failed', error);
+        console.warn('Hand detection failed', error);
+        if (detectionErrorCount >= 5) {
+            setCameraOverlay({
+                title: 'Hand tracking paused',
+                detail: 'Close the camera and try again, or continue with the sample pose.',
+                state: 'error',
+                hasPreview: true,
+            });
+            setCameraMessage('Hand tracking stopped after repeated errors.', false);
+            stopTracking();
+            return;
+        }
     }
     if (isTracking) rafID = requestAnimationFrame(frameLoop);
 }
 
 async function startTracking() {
-    if (isTracking) return;
-    const loading = typeof document !== 'undefined' ? document.getElementById('camera-loading') : null;
-    if (loading) loading.classList.remove('is-hidden');
-    setCameraMessage('Preparing the camera…', false);
+    if (isTracking || isStarting) return true;
+    const requestId = ++startupRequestId;
+    isStarting = true;
+    detectionErrorCount = 0;
+    setCameraOverlay({
+        title: 'Waiting for your camera…',
+        detail: 'Your browser may ask for permission.',
+    });
+    setCameraMessage('Allow camera access to begin.', false);
     try {
-        await ensureModelLoaded();
-        const video = await setupCamera();
+        const video = await setupCamera(requestId);
+        assertCurrentStartup(requestId);
         const canvas = document.getElementById('preview');
         canvas.width = video.videoWidth || VIDEO_WIDTH;
         canvas.height = video.videoHeight || VIDEO_HEIGHT;
-        if (loading) loading.classList.add('is-hidden');
+        drawPreview(canvas.getContext('2d'), video, null, canvas.width, canvas.height);
+        setCameraOverlay({
+            title: 'Camera connected. Finding the flock…',
+            detail: 'Loading hand tracking. The first visit can take a few seconds.',
+            hasPreview: true,
+        });
+        setCameraMessage('Camera ready. Warming up hand tracking…', false);
+        await ensureModelLoaded();
+        assertCurrentStartup(requestId);
+        hideCameraOverlay();
         isTracking = true;
+        isStarting = false;
         await frameLoop();
+        return true;
     } catch (error) {
-        if (loading) loading.classList.add('is-hidden');
-        setCameraMessage(cameraErrorMessage(error), false);
+        if (error && error.name === 'AbortError') return false;
+        if (requestId !== startupRequestId) return false;
+        const message = cameraErrorMessage(error);
+        setCameraOverlay({
+            title: 'Camera setup hit a snag',
+            detail: message,
+            state: 'error',
+            hasPreview: Boolean(activeVideo),
+        });
+        setCameraMessage(message, false);
         stopTracking();
-        throw error;
+        return false;
+    } finally {
+        if (requestId === startupRequestId) isStarting = false;
     }
 }
 
 function stopCameraStream() {
-    if (stream && typeof stream.getTracks === 'function') {
-        stream.getTracks().forEach((track) => track.stop());
-    }
+    stopMediaStream(stream);
     stream = null;
 }
 
 function stopTracking() {
+    startupRequestId += 1;
+    isStarting = false;
     isTracking = false;
+    if (typeof document !== 'undefined') {
+        const capture = document.getElementById('capture');
+        if (capture) capture.disabled = true;
+    }
     if (rafID !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(rafID);
     rafID = null;
     if (activeVideo) {
@@ -344,6 +451,10 @@ function placeTurkey(keypoints, source) {
     pushHistory();
     document.getElementById('studio-status').textContent = `${source} turkey captured. Add a note, doodle, or finishing touch.`;
     document.getElementById('studio').scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+function placeSampleTurkey() {
+    placeTurkey(SAMPLE_KEYPOINTS, 'Sample');
 }
 
 function captureTurkey() {
@@ -398,7 +509,9 @@ function finishDrawing() {
 
 function openCamera() {
     if (!window.TurkeyToolHelper) return;
-    window.TurkeyToolHelper.restartTurkeyCapture().catch(() => undefined);
+    window.TurkeyToolHelper.restartTurkeyCapture().catch((error) => {
+        if (!error || error.name !== 'AbortError') console.warn('Camera startup failed', error);
+    });
 }
 
 function initializeApp() {
@@ -410,7 +523,11 @@ function initializeApp() {
 
     document.getElementById('start-camera').addEventListener('click', openCamera);
     document.getElementById('new-turkey').addEventListener('click', openCamera);
-    document.getElementById('sample-pose').addEventListener('click', () => placeTurkey(SAMPLE_KEYPOINTS, 'Sample'));
+    document.getElementById('sample-pose').addEventListener('click', placeSampleTurkey);
+    document.getElementById('use-sample-camera').addEventListener('click', () => {
+        if (window.TurkeyToolHelper) window.TurkeyToolHelper.closeTurkeyCapture();
+        placeSampleTurkey();
+    });
     document.getElementById('capture').addEventListener('click', () => {
         if (captureTurkey() && window.TurkeyToolHelper) window.TurkeyToolHelper.closeTurkeyCapture();
     });

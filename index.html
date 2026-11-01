@@ -96,11 +96,17 @@
     <div class="camera-stage">
         <video id="video" playsinline muted aria-hidden="true"></video>
         <canvas id="preview" width="640" height="500" aria-label="Live camera preview with hand pose overlay"></canvas>
-        <div class="camera-loading" id="camera-loading"><span class="loader" aria-hidden="true"></span><strong>Warming up the model…</strong><span>This can take a few seconds the first time.</span></div>
+        <div class="camera-loading" id="camera-loading">
+            <span class="loader" aria-hidden="true"></span>
+            <span class="camera-error-mark" aria-hidden="true">!</span>
+            <strong id="camera-loading-title">Waiting for your camera…</strong>
+            <span id="camera-loading-detail">Your browser may ask for permission.</span>
+        </div>
     </div>
     <p class="camera-status" id="camera-status" role="status" aria-live="polite">Preparing the camera…</p>
     <div class="dialog__actions">
         <button class="button button--quiet" id="cancel-camera" type="button">Cancel</button>
+        <button class="button button--quiet" id="use-sample-camera" type="button">Use sample pose</button>
         <button class="button button--primary" id="capture" type="button" disabled>Capture this pose</button>
     </div>
 </dialog>
@@ -108,6 +114,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@2.0.1/dist/hand-pose-detection.min.js"></script>
 <script src="handpose/geometry.js"></script>
 <script src="handpose/main.js"></script>
