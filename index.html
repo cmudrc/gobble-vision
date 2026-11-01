@@ -8,7 +8,7 @@
     <title>GobbleVision | AI Hand Turkey Studio</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><text y=%2252%22 font-size=%2252%22>🦃</text></svg>">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="stylesheet" href="style.css?v=20261101-studio-only">
+    <link rel="stylesheet" href="style.css?v=20261101-share">
 </head>
 <body>
 <header class="site-header">
@@ -71,7 +71,10 @@
                     <button class="tool-button" id="clear" type="button" disabled><span aria-hidden="true">◇</span> Reset</button>
                     <button class="tool-button" id="new-turkey" type="button"><span aria-hidden="true">◉</span> New pose</button>
                 </div>
-                <button class="button button--download" id="download" type="button" disabled>Download PNG <span aria-hidden="true">↓</span></button>
+                <div class="toolbar__export">
+                    <button class="button button--share" id="share" type="button" disabled>Share turkey <span aria-hidden="true">↗</span></button>
+                    <button class="button button--download" id="download" type="button" disabled>Download PNG <span aria-hidden="true">↓</span></button>
+                </div>
             </aside>
         </div>
     </section>
@@ -112,7 +115,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@2.0.1/dist/hand-pose-detection.min.js"></script>
 <script src="handpose/geometry.js"></script>
-<script src="handpose/main.js?v=20261101-studio-first"></script>
+<script src="handpose/main.js?v=20261101-share"></script>
 <script src="handpose/turkey-tool-helper.js"></script>
 </body>
 </html>

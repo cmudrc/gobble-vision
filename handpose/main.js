@@ -646,6 +646,7 @@ function updateStudioControls() {
     const hasArt = artHistory.length > 0;
     document.getElementById('undo').disabled = artHistory.length < 2;
     document.getElementById('clear').disabled = !hasArt;
+    document.getElementById('share').disabled = !hasArt;
     document.getElementById('download').disabled = !hasArt;
     document.getElementById('artboard-empty').classList.toggle('is-hidden', hasArt);
 }
@@ -700,6 +701,101 @@ function showToast(message) {
     toast.classList.add('is-visible');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2200);
+}
+
+function pngFileFromCanvas(canvasElement) {
+    if (!canvasElement || typeof File === 'undefined' || typeof atob !== 'function') return null;
+    const dataUrl = canvasElement.toDataURL('image/png');
+    const base64 = dataUrl.split(',')[1];
+    if (!base64) return null;
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    return new File([bytes], 'gobblevision-turkey.png', {type: 'image/png'});
+}
+
+async function shareTurkeyContent({navigatorObject, file, url, copyText}) {
+    const title = 'My GobbleVision turkey';
+    const linkText = 'Hold up a hand. Make a turkey.';
+    const fileText = `Made with GobbleVision: ${url}`;
+
+    if (navigatorObject && typeof navigatorObject.share === 'function') {
+        const filePayload = {title, text: fileText, files: file ? [file] : []};
+        let canShareFile = Boolean(file);
+        if (canShareFile && typeof navigatorObject.canShare === 'function') {
+            try {
+                canShareFile = navigatorObject.canShare(filePayload);
+            } catch (_error) {
+                canShareFile = false;
+            }
+        }
+        if (canShareFile) {
+            try {
+                await navigatorObject.share(filePayload);
+                return 'file';
+            } catch (error) {
+                if (error && error.name === 'AbortError') throw error;
+            }
+        }
+        try {
+            await navigatorObject.share({title: 'GobbleVision', text: linkText, url});
+            return 'link';
+        } catch (error) {
+            if (error && error.name === 'AbortError') throw error;
+        }
+    }
+
+    if (navigatorObject && navigatorObject.clipboard && typeof navigatorObject.clipboard.writeText === 'function') {
+        try {
+            await navigatorObject.clipboard.writeText(url);
+            return 'copy';
+        } catch (_error) {
+            // Fall through to the document-based copy helper.
+        }
+    }
+    if (typeof copyText === 'function' && await copyText(url)) return 'copy';
+    return 'unsupported';
+}
+
+function copyTextWithDocument(value) {
+    if (typeof document === 'undefined' || typeof document.execCommand !== 'function') return false;
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } finally {
+        textarea.remove();
+    }
+    return copied;
+}
+
+async function shareTurkey() {
+    const button = document.getElementById('share');
+    button.disabled = true;
+    try {
+        const result = await shareTurkeyContent({
+            navigatorObject: navigator,
+            file: pngFileFromCanvas(artboard),
+            url: window.location.href.split('#')[0],
+            copyText: copyTextWithDocument,
+        });
+        const messages = {
+            file: 'Turkey shared. Happy Thanksgiving!',
+            link: 'GobbleVision shared. Happy Thanksgiving!',
+            copy: 'GobbleVision link copied.',
+            unsupported: 'Sharing is not supported here. Download the PNG instead.',
+        };
+        showToast(messages[result]);
+    } catch (error) {
+        if (!error || error.name !== 'AbortError') showToast('Sharing hit a snag. Download the PNG instead.');
+    } finally {
+        button.disabled = artHistory.length === 0;
+    }
 }
 
 function canvasPoint(event) {
@@ -806,6 +902,7 @@ function initializeApp() {
         updateStudioControls();
         showToast('Back to the original turkey.');
     });
+    document.getElementById('share').addEventListener('click', shareTurkey);
     document.getElementById('download').addEventListener('click', () => {
         const link = document.createElement('a');
         link.download = 'gobblevision-turkey.png';
@@ -853,6 +950,7 @@ if (typeof module !== 'undefined' && module.exports) {
         cameraErrorMessage,
         calculateTransform,
         renderStylizedTurkey,
+        shareTurkeyContent,
         stopCameraStream,
         stopTurkeyExperience,
         __setStream: __setStreamForTesting,

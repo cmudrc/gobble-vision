@@ -105,6 +105,47 @@ test('renderStylizedTurkey paints a complete canvas without browser globals', ()
     assert.ok(calls.some(([name]) => name === 'fillText'));
 });
 
+test('shareTurkeyContent shares the generated PNG when file sharing is supported', async () => {
+    const payloads = [];
+    const file = {name: 'gobblevision-turkey.png'};
+    const result = await app.shareTurkeyContent({
+        navigatorObject: {
+            canShare: ({files}) => files[0] === file,
+            share: async (payload) => payloads.push(payload),
+        },
+        file,
+        url: 'https://cmudrc.github.io/gobble-vision/',
+    });
+    assert.equal(result, 'file');
+    assert.deepEqual(payloads[0].files, [file]);
+    assert.match(payloads[0].text, /cmudrc\.github\.io/);
+});
+
+test('shareTurkeyContent falls back to the page link when file sharing is unavailable', async () => {
+    const payloads = [];
+    const result = await app.shareTurkeyContent({
+        navigatorObject: {
+            canShare: () => false,
+            share: async (payload) => payloads.push(payload),
+        },
+        file: {name: 'gobblevision-turkey.png'},
+        url: 'https://cmudrc.github.io/gobble-vision/',
+    });
+    assert.equal(result, 'link');
+    assert.equal(payloads[0].url, 'https://cmudrc.github.io/gobble-vision/');
+});
+
+test('shareTurkeyContent copies the page link without a native share sheet', async () => {
+    const copied = [];
+    const result = await app.shareTurkeyContent({
+        navigatorObject: {clipboard: {writeText: async (value) => copied.push(value)}},
+        file: null,
+        url: 'https://cmudrc.github.io/gobble-vision/',
+    });
+    assert.equal(result, 'copy');
+    assert.deepEqual(copied, ['https://cmudrc.github.io/gobble-vision/']);
+});
+
 test('stopping the experience cancels animation and camera tracks', () => {
     let cancelled = null;
     let stopped = 0;
