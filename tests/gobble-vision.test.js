@@ -28,6 +28,12 @@ test('calculateTransform fits a hand inside the artboard', () => {
     assert.ok(Number.isFinite(transform.offsetY));
 });
 
+test('canvas resolution follows a full-width workspace without stretching the art', () => {
+    assert.deepEqual(app.calculateCanvasResolution(1000, 600), {width: 1200, height: 720});
+    assert.deepEqual(app.calculateCanvasResolution(1600, 900), {width: 1600, height: 900});
+    assert.deepEqual(app.calculateCanvasResolution(0, 0), {width: 1200, height: 900});
+});
+
 test('photo frame transform preserves composition inside the artboard', () => {
     assert.equal(app.MAX_HANDS, 4);
     const transform = app.calculateFrameTransform(640, 500, 1200, 900);
@@ -156,7 +162,7 @@ test('palm and feather radius controls scale independently', () => {
 test('camera errors are translated into useful next steps', () => {
     const error = new Error('Requested device not found');
     error.name = 'NotFoundError';
-    assert.equal(app.cameraErrorMessage(error), 'No camera was found. Try the sample pose instead.');
+    assert.equal(app.cameraErrorMessage(error), 'No camera was found. Connect one, then try again.');
 });
 
 test('renderStylizedTurkey paints a complete canvas without browser globals', () => {
@@ -174,7 +180,8 @@ test('renderStylizedTurkey paints a complete canvas without browser globals', ()
     app.renderStylizedTurkey(context, app.SAMPLE_KEYPOINTS, 1200, 900);
     assert.ok(calls.some(([name]) => name === 'bezierCurveTo'));
     assert.ok(calls.some(([name]) => name === 'quadraticCurveTo'));
-    assert.ok(calls.some(([name]) => name === 'fillText'));
+    assert.ok(calls.some(([name, text]) => name === 'fillText' && text === 'GOBBLEVISION'));
+    assert.ok(calls.some(([name, text]) => name === 'fillText' && text === 'Happy Thanksgiving from the DRC'));
 });
 
 test('renderStylizedTurkeys keeps each turkey at its hand location', () => {

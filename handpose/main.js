@@ -55,6 +55,29 @@ let featherRadiusScale = 1;
 let toastTimer = null;
 let captureCountdown = null;
 
+function calculateCanvasResolution(displayWidth, displayHeight, minimumWidth = 1200) {
+    const measuredWidth = Number(displayWidth);
+    const measuredHeight = Number(displayHeight);
+    const requestedMinimum = Number(minimumWidth);
+    const safeWidth = Number.isFinite(measuredWidth) && measuredWidth > 0 ? measuredWidth : 4;
+    const safeHeight = Number.isFinite(measuredHeight) && measuredHeight > 0 ? measuredHeight : safeWidth * 0.75;
+    const safeMinimum = Number.isFinite(requestedMinimum) && requestedMinimum > 0 ? requestedMinimum : 1200;
+    const targetWidth = Math.max(1, Math.round(Math.max(safeMinimum, safeWidth)));
+    return {
+        width: targetWidth,
+        height: Math.max(1, Math.round(targetWidth * (safeHeight / safeWidth))),
+    };
+}
+
+function sizeArtboardToDisplay(canvasElement) {
+    if (!canvasElement || typeof canvasElement.getBoundingClientRect !== 'function') return null;
+    const bounds = canvasElement.getBoundingClientRect();
+    const resolution = calculateCanvasResolution(bounds.width, bounds.height);
+    canvasElement.width = resolution.width;
+    canvasElement.height = resolution.height;
+    return resolution;
+}
+
 function createCountdown(seconds, {
     onTick = () => {},
     onComplete = () => {},
@@ -380,8 +403,8 @@ function renderArtboardBackground(context, width, height) {
     context.fillRect(0, 0, width, height);
 
     context.fillStyle = 'rgba(11,79,84,0.055)';
-    for (let row = 0; row < 7; row += 1) {
-        for (let column = 0; column < 10; column += 1) {
+    for (let row = 0; row < Math.ceil(height / 132); row += 1) {
+        for (let column = 0; column < Math.ceil(width / 128); column += 1) {
             fillCircle(context, 45 + column * 128 + (row % 2) * 42, 44 + row * 132, 4, 'rgba(11,79,84,0.055)');
         }
     }
@@ -393,7 +416,7 @@ function renderArtboardBackground(context, width, height) {
     context.font = `500 ${Math.max(12, width * 0.012)}px system-ui, sans-serif`;
     context.fillStyle = '#627374';
     context.textAlign = 'right';
-    context.fillText('A tiny Thanksgiving experiment from the DRC', width - 42, height - 44);
+    context.fillText('Happy Thanksgiving from the DRC', width - 42, height - 44);
     context.textAlign = 'left';
 }
 
@@ -557,7 +580,7 @@ function stopMediaStream(mediaStream) {
 
 async function setupCamera(requestId) {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('This browser cannot access a camera. Try the sample pose instead.');
+        throw new Error('This browser cannot access a camera.');
     }
     const video = document.getElementById('video');
     const cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -655,17 +678,17 @@ function cancelCaptureCountdown() {
 }
 
 function cameraErrorMessage(error) {
-    if (!error) return 'The camera could not start. Try the sample pose instead.';
+    if (!error) return 'The camera could not start. Close this window and try again.';
     if (error.name === 'NotAllowedError' || error.name === 'SecurityError') {
-        return 'Camera access was blocked. Allow access in your browser, or try the sample pose.';
+        return 'Camera access was blocked. Allow it in your browser, then try again.';
     }
     if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-        return 'No camera was found. Try the sample pose instead.';
+        return 'No camera was found. Connect one, then try again.';
     }
     if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
         return 'Another app may be using the camera. Close it and try again.';
     }
-    return error.message || 'The camera could not start. Try the sample pose instead.';
+    return error.message || 'The camera could not start. Close this window and try again.';
 }
 
 async function frameLoop() {
@@ -699,7 +722,7 @@ async function frameLoop() {
         if (detectionErrorCount >= 5) {
             setCameraOverlay({
                 title: 'Hand tracking paused',
-                detail: 'Close the camera and try again, or continue with the sample pose.',
+                detail: 'Close the camera, then try again.',
                 state: 'error',
                 hasPreview: true,
             });
@@ -826,10 +849,6 @@ function placeTurkeys(hands, source, frame = {}) {
     document.getElementById('studio-status').textContent = `${captureLabel} captured. Add a note, doodle, or finishing touch.`;
 }
 
-function placeTurkey(keypoints, source) {
-    placeTurkeys([keypoints], source);
-}
-
 function reshapePlacedTurkey() {
     if (!artboardContext || !placedHands) return false;
     renderStylizedTurkeys(artboardContext, placedHands, artboard.width, artboard.height, {
@@ -842,10 +861,6 @@ function reshapePlacedTurkey() {
     pushHistory();
     document.getElementById('studio-status').textContent = `${placedSource} turkey reshaped. Add a note, doodle, or finishing touch.`;
     return true;
-}
-
-function placeSampleTurkey() {
-    placeTurkey(SAMPLE_KEYPOINTS, 'Sample');
 }
 
 function captureTurkey() {
@@ -899,7 +914,7 @@ function pngFileFromCanvas(canvasElement) {
 
 async function shareTurkeyContent({navigatorObject, file, url, copyText}) {
     const title = 'My GobbleVision turkey';
-    const linkText = 'Hold up a hand. Make a turkey.';
+    const linkText = 'Hand turkeys with your webcam!';
     const fileText = `Made with GobbleVision: ${url}`;
 
     if (navigatorObject && typeof navigatorObject.share === 'function') {
@@ -1026,17 +1041,13 @@ function openCamera() {
 function initializeApp() {
     artboard = document.getElementById('artboard');
     if (!artboard) return;
+    sizeArtboardToDisplay(artboard);
     artboardContext = artboard.getContext('2d', {willReadFrequently: true});
     artboardContext.fillStyle = PAPER;
     artboardContext.fillRect(0, 0, artboard.width, artboard.height);
 
     document.getElementById('start-camera').addEventListener('click', openCamera);
     document.getElementById('new-turkey').addEventListener('click', openCamera);
-    document.getElementById('sample-pose').addEventListener('click', placeSampleTurkey);
-    document.getElementById('use-sample-camera').addEventListener('click', () => {
-        if (window.TurkeyToolHelper) window.TurkeyToolHelper.closeTurkeyCapture();
-        placeSampleTurkey();
-    });
     document.getElementById('capture-timer').addEventListener('change', () => {
         if (timerIsEnabled()) {
             setCameraMessage('Timer ready. Start it, then put every hand in frame.', currentHands.length);
@@ -1146,6 +1157,7 @@ if (typeof module !== 'undefined' && module.exports) {
         CAPTURE_COUNTDOWN_SECONDS,
         createCountdown,
         captureButtonLabel,
+        calculateCanvasResolution,
         calculateShapeWidths,
         calculatePalmGeometry,
         fillRoundedPalm,

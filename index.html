@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#082f33">
     <meta name="description" content="Turn one or more hand poses into a flock of digital turkeys with an in-browser machine learning model.">
-    <title>GobbleVision | AI Hand Turkey Studio</title>
+    <title>GobbleVision | Webcam Hand Turkey Studio</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><text y=%2252%22 font-size=%2252%22>🦃</text></svg>">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="stylesheet" href="style.css?v=20261123-fullscreen">
+    <link rel="stylesheet" href="style.css?v=20261123-workspace">
 </head>
 <body>
 <header class="site-header">
@@ -20,21 +20,20 @@
         <div class="studio__heading">
             <div class="studio__intro">
             <p class="eyebrow">A tiny Thanksgiving experiment</p>
-                <h1 id="studio-title">Hold up a hand. <em>Make a turkey.</em></h1>
+                <h1 id="studio-title">Hand turkeys <em>with your webcam!</em></h1>
             </div>
             <div class="studio__launch">
             <div class="hero__actions">
-                <button class="button button--primary" id="start-camera" type="button"><span aria-hidden="true">◉</span> Start with my camera</button>
-                <button class="button button--quiet" id="sample-pose" type="button">Try a sample pose</button>
+                <button class="button button--primary" id="start-camera" type="button" aria-describedby="privacy-note"><span aria-hidden="true">◉</span> Start with my camera</button>
             </div>
-            <p class="privacy-note"><span aria-hidden="true">●</span> Your camera stays on your device. No photo or video is uploaded.</p>
+            <p class="privacy-note" id="privacy-note"><span aria-hidden="true">●</span> Your camera stays on your device. Only your turkey image leaves if you choose to share it.</p>
                 <p class="studio__status" id="studio-status" role="status" aria-live="polite">One hand makes a turkey. More hands make a flock.</p>
             </div>
         </div>
         <div class="studio__workspace">
             <div class="artboard-shell">
                 <canvas id="artboard" width="1200" height="900" aria-label="Your digital hand turkey drawing"></canvas>
-                <div class="artboard-empty" id="artboard-empty"><span class="artboard-empty__icon" aria-hidden="true">✋</span><strong>Your turkey flock will land here</strong><span>Show one to four hands, or try the sample pose.</span></div>
+                <div class="artboard-empty" id="artboard-empty"><span class="artboard-empty__icon" aria-hidden="true">✋</span><strong>Your turkey flock will land here</strong><span>Show one to four hands in your webcam.</span></div>
             </div>
             <aside class="toolbar" aria-label="Drawing tools">
                 <div class="tool-group">
@@ -68,8 +67,8 @@
                     <button class="tool-button" id="new-turkey" type="button"><span aria-hidden="true">◉</span> New pose</button>
                 </div>
                 <div class="toolbar__export">
-                    <button class="button button--share" id="share" type="button" disabled>Share creation <span aria-hidden="true">↗</span></button>
-                    <button class="button button--download" id="download" type="button" disabled>Download PNG <span aria-hidden="true">↓</span></button>
+                    <button class="button button--share" id="share" type="button" disabled>Share creation</button>
+                    <button class="button button--download" id="download" type="button" disabled>Download PNG</button>
                 </div>
             </aside>
         </div>
@@ -79,7 +78,7 @@
 
 <dialog id="turkey-dialog" aria-labelledby="dialog-title">
     <div class="dialog__header">
-        <div><p class="section-kicker">Camera studio</p><h2 id="dialog-title">Show us your best turkey poses</h2></div>
+        <div><p class="section-kicker">Camera studio</p><h2 id="dialog-title">Show us your best turkey poses</h2><p class="camera-privacy">Your camera picture is never saved or uploaded.</p></div>
         <button class="dialog__close" id="close-dialog" type="button" aria-label="Close camera">×</button>
     </div>
     <div class="camera-stage">
@@ -103,7 +102,6 @@
             <span>3-second timer</span>
         </label>
         <button class="button button--quiet" id="cancel-camera" type="button">Cancel</button>
-        <button class="button button--quiet" id="use-sample-camera" type="button">Use sample pose</button>
         <button class="button button--primary" id="capture" type="button" disabled>Capture this pose</button>
     </div>
 </dialog>
@@ -114,7 +112,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@2.0.1/dist/hand-pose-detection.min.js"></script>
 <script src="handpose/geometry.js"></script>
-<script src="handpose/main.js?v=20261101-position"></script>
+<script src="handpose/main.js?v=20261123-workspace"></script>
 <script src="handpose/turkey-tool-helper.js"></script>
 </body>
 </html>

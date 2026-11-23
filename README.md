@@ -1,14 +1,12 @@
 # GobbleVision
 
-**Hold up a hand. Make a turkey.**
+**Hand turkeys with your webcam!**
 
 GobbleVision is a browser-based Thanksgiving experiment from the [Design Research Collective](https://cmudrc.github.io/) at Carnegie Mellon University. It uses MediaPipe Hands through the TensorFlow.js hand-pose-detection API to turn each detected set of 21 landmarks into a stylized digital turkey. Show one hand for a turkey or up to four hands for a flock, then decorate, share, or download the result.
 
 ## Try it
 
 Open [cmudrc.github.io/gobble-vision](https://cmudrc.github.io/gobble-vision/).
-
-No camera? Choose **Try a sample pose**. The complete art studio works without camera access.
 
 ## What changed in version 2
 
@@ -19,6 +17,7 @@ No camera? Choose **Try a sample pose**. The complete art studio works without c
 - A generated turkey replaces the raw camera capture, keeping the artwork playful and the background private.
 - An optional three-second camera timer lets everyone move away from the controls and put all available hands in frame.
 - A native canvas studio provides drawing, color, brush-size, undo, reset, and PNG download controls.
+- The desktop artboard fills all available space beside the tools without stretching the generated artwork.
 - The interface works on phones, tablets, and desktops and includes reduced-motion and keyboard-focus support.
 - The project has no npm runtime or test dependencies.
 
@@ -45,7 +44,7 @@ npm test
 3. Finger paths become feathers, the palm becomes a body, and the thumb becomes the head.
 4. The generated bird is placed on a native canvas for annotation and export.
 
-The browser downloads the model and WebAssembly assets from jsDelivr on first use. Camera frames, landmarks, drawings, and downloaded images remain local to the device.
+The browser downloads the model and WebAssembly assets from jsDelivr on first use. Camera frames and landmarks remain local to the device. Drawings stay local unless someone explicitly downloads or shares the exported turkey image.
 
 ## Project structure
 
